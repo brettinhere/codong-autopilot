@@ -108,7 +108,6 @@ select.form-input { cursor:pointer; }
       <span class="page-title" data-i18n="nav_dashboard">实时概览</span>
       <div class="header-right">
         <span class="badge" id="status-badge">● 连接中...</span>
-        <button id="engine-btn" class="btn btn-outline btn-sm" onclick="toggleEngine()" style="min-width:100px">⏳ 加载中</button>
         <div class="lang-switch">
           <button class="lang-btn active" onclick="setLang('zh')">中文</button>
           <button class="lang-btn" onclick="setLang('en')">EN</button>
@@ -150,6 +149,29 @@ select.form-input { cursor:pointer; }
         <div class="card-label" data-i18n="card_failed">发布失败</div>
         <div class="big-num err" id="c-failed">—</div>
         <div class="card-sub" data-i18n="card_failed_sub">需要处理</div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header" data-i18n="engine_control">引擎控制</div>
+      <div class="section-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:14px">
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" data-i18n="eng_publish">📤 发布引擎</div>
+            <div style="font-size:11px;color:#8b949e;margin-bottom:12px" data-i18n="eng_publish_desc">按计划时间发布帖子到各平台</div>
+            <button id="btn-publish" class="btn btn-sm" onclick="toggleEngine('publish')" style="width:100%">⏳</button>
+          </div>
+          <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:14px">
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" data-i18n="eng_reply">↩️ 回复引擎</div>
+            <div style="font-size:11px;color:#8b949e;margin-bottom:12px" data-i18n="eng_reply_desc">自动回复你发布帖子下的评论</div>
+            <button id="btn-reply" class="btn btn-sm" onclick="toggleEngine('reply')" style="width:100%">⏳</button>
+          </div>
+          <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:14px">
+            <div style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px" data-i18n="eng_comment">💬 评论引擎</div>
+            <div style="font-size:11px;color:#8b949e;margin-bottom:12px" data-i18n="eng_comment_desc">搜索关键词帖子并发出评论引流</div>
+            <button id="btn-comment" class="btn btn-sm" onclick="toggleEngine('comment')" style="width:100%">⏳</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -342,8 +364,12 @@ select.form-input { cursor:pointer; }
             <input class="form-input" id="cfg-tone" data-i18n-placeholder="brand_tone_ph">
           </div>
           <div class="form-group full">
-            <label class="form-label" data-i18n="comment_keywords">引流关键词（逗号分隔）</label>
+            <label class="form-label" data-i18n="comment_keywords">引流关键词（逗号分隔，搜索这些关键词的帖子去评论）</label>
             <input class="form-input" id="cfg-keywords" data-i18n-placeholder="keywords_ph">
+          </div>
+          <div class="form-group full">
+            <label class="form-label" data-i18n="comment_templates">评论内容库（每行一条，随机轮用；留空则用 AI 自动生成）</label>
+            <textarea class="form-input" id="cfg-templates" rows="6" data-i18n-placeholder="templates_ph"></textarea>
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="daily_limit">每日评论上限</label>
@@ -402,6 +428,11 @@ const T = {
     brand_name:'品牌名称', brand_name_ph:'你的品牌名',
     brand_tone:'品牌语气', brand_tone_ph:'例如：专业、友好、有价值感',
     comment_keywords:'引流关键词（逗号分隔）', keywords_ph:'例如：AI工具, 效率提升, 编程',
+    comment_templates:'评论内容库（每行一条）', templates_ph:'每行写一条评论，系统随机挑选发送\n例如：\n这个工具真的太好用了！\n有没有 API 文档？想集成进我的项目',
+    engine_control:'引擎控制',
+    eng_publish:'📤 发布引擎', eng_publish_desc:'按计划时间发布帖子到各平台',
+    eng_reply:'↩️ 回复引擎', eng_reply_desc:'自动回复你发布帖子下的评论',
+    eng_comment:'💬 评论引擎', eng_comment_desc:'搜索关键词帖子并发出评论引流',
     daily_limit:'每日评论上限', llm_limit:'LLM 每日调用上限',
     webhook:'失败通知 Webhook（选填，飞书/钉钉/企业微信）',
     btn_save:'保存配置', saved:'✓ 已保存！',
@@ -441,6 +472,11 @@ const T = {
     brand_name:'Brand Name', brand_name_ph:'Your brand name',
     brand_tone:'Brand Tone', brand_tone_ph:'e.g. professional, friendly, value-driven',
     comment_keywords:'Comment Keywords (comma separated)', keywords_ph:'e.g. AI tools, productivity, coding',
+    comment_templates:'Comment Templates (one per line)', templates_ph:'Write one comment per line, system picks randomly\ne.g.:\nThis tool is incredibly useful!\nDo you have an API? Would love to integrate this.',
+    engine_control:'Engine Control',
+    eng_publish:'📤 Publish Engine', eng_publish_desc:'Publish queued posts on schedule',
+    eng_reply:'↩️ Reply Engine', eng_reply_desc:'Auto-reply to comments on your posts',
+    eng_comment:'💬 Comment Engine', eng_comment_desc:'Search keywords and post comments for traffic',
     daily_limit:'Comment Daily Limit', llm_limit:'LLM Daily Call Limit',
     webhook:'Failure Webhook URL (optional — Feishu/DingTalk/WeCom)',
     btn_save:'Save Configuration', saved:'✓ Saved!',
@@ -496,7 +532,7 @@ es.onopen  = () => updateStatusBadge(true)
 es.onerror = () => updateStatusBadge(false)
 es.onmessage = e => {
   const msg = JSON.parse(e.data)
-  if (msg.event === 'engine_status') { renderEngineBtn(msg.data?.running); return }
+  if (msg.event === 'engine_status') { renderAllEngines(msg.data||{}); return }
   if (msg.event === 'snapshot') renderSnapshot(msg.data)
   else addLog(msg)
 }
@@ -613,6 +649,7 @@ function loadConfig() {
     document.getElementById('cfg-brand').value        = d.BRAND_NAME            || ''
     document.getElementById('cfg-tone').value         = d.BRAND_TONE            || ''
     document.getElementById('cfg-keywords').value     = d.COMMENT_KEYWORDS      || ''
+    document.getElementById('cfg-templates').value    = d.COMMENT_TEMPLATES     || ''
     document.getElementById('cfg-daily-limit').value  = d.COMMENT_DAILY_LIMIT   || '30'
     document.getElementById('cfg-llm-limit').value    = d.LLM_DAILY_LIMIT       || '200'
     document.getElementById('cfg-webhook').value      = d.NOTIFY_WEBHOOK        || ''
@@ -644,6 +681,7 @@ function saveConfig() {
     BRAND_NAME:            document.getElementById('cfg-brand').value,
     BRAND_TONE:            document.getElementById('cfg-tone').value,
     COMMENT_KEYWORDS:      document.getElementById('cfg-keywords').value,
+    COMMENT_TEMPLATES:     document.getElementById('cfg-templates').value,
     COMMENT_DAILY_LIMIT:   document.getElementById('cfg-daily-limit').value,
     LLM_DAILY_LIMIT:       document.getElementById('cfg-llm-limit').value,
     NOTIFY_WEBHOOK:        document.getElementById('cfg-webhook').value,
@@ -694,31 +732,48 @@ function showPage(name, el) {
 }
 
 // ══ engine toggle ══════════════════════════════════════════════════════════
-let engineOn = false
+const ENGINE_KEYS = ['publish','reply','comment']
+const engineState = {publish:false, reply:false, comment:false}
 
-function renderEngineBtn(running) {
-  engineOn = running
-  const btn = document.getElementById('engine-btn')
+function renderEngineBtn(which, running) {
+  engineState[which] = running
+  const btn = document.getElementById('btn-'+which)
+  if (!btn) return
   if (running) {
-    btn.textContent = '⏸ ' + (lang==='zh'?'暂停引擎':'Pause')
-    btn.style.background = 'rgba(255,123,114,.15)'
-    btn.style.borderColor = '#ff7b72'
-    btn.style.color = '#ff7b72'
+    btn.textContent = '⏸ ' + (lang==='zh'?'暂停':'Pause')
+    btn.style.cssText = 'width:100%;background:rgba(255,123,114,.15);border:1px solid #ff7b72;color:#ff7b72;padding:5px;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:600'
   } else {
-    btn.textContent = '▶ ' + (lang==='zh'?'启动引擎':'Start')
-    btn.style.background = 'rgba(63,185,80,.15)'
-    btn.style.borderColor = '#3fb950'
-    btn.style.color = '#3fb950'
+    btn.textContent = '▶ ' + (lang==='zh'?'启动':'Start')
+    btn.style.cssText = 'width:100%;background:rgba(63,185,80,.15);border:1px solid #3fb950;color:#3fb950;padding:5px;border-radius:4px;cursor:pointer;font-family:monospace;font-size:11px;font-weight:600'
   }
 }
 
-function toggleEngine() {
-  const url = engineOn ? '/autopilot/api/engine/stop' : '/autopilot/api/engine/start'
-  fetch(url, {method:'POST'}).then(r=>r.json()).then(d => renderEngineBtn(d.running))
+function renderAllEngines(d) {
+  ENGINE_KEYS.forEach(k => renderEngineBtn(k, d[k]||false))
+}
+
+function toggleEngine(which) {
+  const running = engineState[which]
+  const url = running ? `/autopilot/api/engine/stop?which=${which}` : `/autopilot/api/engine/start?which=${which}`
+  // 评论引擎启动前校验
+  if (!running && which === 'comment') {
+    const kw = document.getElementById('cfg-keywords') ? document.getElementById('cfg-keywords').value : ''
+    const tpl = document.getElementById('cfg-templates') ? document.getElementById('cfg-templates').value : ''
+    if (!kw.trim()) {
+      alert(lang==='zh' ? '请先在配置页填写「引流关键词」再启动评论引擎' : 'Please set Comment Keywords in Config before starting the Comment Engine')
+      showPage('config', document.querySelectorAll('.nav-item')[3])
+      return
+    }
+    if (!tpl.trim()) {
+      const ok = confirm(lang==='zh' ? '评论内容库为空，将使用 AI 自动生成评论（需要 Anthropic API Key）。\n\n继续启动？' : 'No comment templates set. AI will generate comments (requires Anthropic API Key).\n\nContinue?')
+      if (!ok) return
+    }
+  }
+  fetch(url, {method:'POST'}).then(r=>r.json()).then(d => renderAllEngines(d))
 }
 
 // 页面加载时获取引擎状态
-fetch('/autopilot/api/engine/status').then(r=>r.json()).then(d => renderEngineBtn(d.running))
+fetch('/autopilot/api/engine/status').then(r=>r.json()).then(d => renderAllEngines(d))
 
 // ══ helpers ════════════════════════════════════════════════════════════════
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;') }

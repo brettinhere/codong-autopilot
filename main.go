@@ -39,8 +39,10 @@ var (
 	wsMu     sync.Mutex
 	wsConns  []chan string
 
-	// 引擎开关，默认关闭，需要用户手动启动
-	engineRunning bool
+	// 各引擎独立开关，默认全部关闭
+	enginePublish bool
+	engineReply   bool
+	engineComment bool
 	engineMu      sync.Mutex
 )
 
@@ -658,42 +660,71 @@ func isSafeComment(text string) bool {
 
 // ─── publish engine ──────────────────────────────────────────────────────────
 
-func isEngineRunning() bool {
+func engineStatus() map[string]bool {
 	engineMu.Lock()
 	defer engineMu.Unlock()
-	return engineRunning
+	return map[string]bool{
+		"publish": enginePublish,
+		"reply":   engineReply,
+		"comment": engineComment,
+	}
 }
 
 func handleEngineStart(w http.ResponseWriter, r *http.Request) {
+	which := r.URL.Query().Get("which") // publish | reply | comment
 	engineMu.Lock()
-	engineRunning = true
+	switch which {
+	case "publish":
+		enginePublish = true
+		logMsg("▶️  发布引擎已启动")
+	case "reply":
+		engineReply = true
+		logMsg("▶️  回复引擎已启动")
+	case "comment":
+		engineComment = true
+		logMsg("▶️  评论引擎已启动")
+	}
 	engineMu.Unlock()
-	logMsg("▶️  引擎已启动")
-	broadcastEvent(Event{Ev: "engine_status", Data: map[string]bool{"running": true}, Time: time.Now().Format("15:04:05")})
+	st := engineStatus()
+	broadcastEvent(Event{Ev: "engine_status", Data: st, Time: time.Now().Format("15:04:05")})
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true, "running": true})
+	json.NewEncoder(w).Encode(st)
 }
 
 func handleEngineStop(w http.ResponseWriter, r *http.Request) {
+	which := r.URL.Query().Get("which")
 	engineMu.Lock()
-	engineRunning = false
+	switch which {
+	case "publish":
+		enginePublish = false
+		logMsg("⏸️  发布引擎已暂停")
+	case "reply":
+		engineReply = false
+		logMsg("⏸️  回复引擎已暂停")
+	case "comment":
+		engineComment = false
+		logMsg("⏸️  评论引擎已暂停")
+	}
 	engineMu.Unlock()
-	logMsg("⏸️  引擎已暂停")
-	broadcastEvent(Event{Ev: "engine_status", Data: map[string]bool{"running": false}, Time: time.Now().Format("15:04:05")})
+	st := engineStatus()
+	broadcastEvent(Event{Ev: "engine_status", Data: st, Time: time.Now().Format("15:04:05")})
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"ok": true, "running": false})
+	json.NewEncoder(w).Encode(st)
 }
 
 func handleEngineStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"running": isEngineRunning()})
+	json.NewEncoder(w).Encode(engineStatus())
 }
 
 func publishEngine() {
 	time.Sleep(3 * time.Second)
 	logMsg("⏰ 发布引擎就绪（等待启动）")
 	for {
-		if !isEngineRunning() {
+		engineMu.Lock()
+		running := enginePublish
+		engineMu.Unlock()
+		if !running {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -765,12 +796,15 @@ func publishEngine() {
 
 func replyEngine() {
 	time.Sleep(5 * time.Second)
-	logMsg("💬 自动回复引擎就绪（等待启动）")
+	logMsg("💬 回复引擎就绪（等待启动）")
 	myUID := os.Getenv("TWITTER_USER_ID")
 	brandTone := getenv("BRAND_TONE", "专业、友好、有价值感")
 
 	for {
-		if !isEngineRunning() {
+		engineMu.Lock()
+		running := engineReply
+		engineMu.Unlock()
+		if !running {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -851,7 +885,10 @@ func commentEngine() {
 	logMsg("🔍 评论引擎就绪（等待启动）")
 
 	for {
-		if !isEngineRunning() {
+		engineMu.Lock()
+		running := engineComment
+		engineMu.Unlock()
+		if !running {
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -911,18 +948,37 @@ func commentEngine() {
 			continue
 		}
 
-		styleMap := map[string]string{
-			"有价值的补充": "Add a useful piece of information not mentioned in the post, max 50 words.",
-			"提问互动":    "Ask a specific genuine question, max 30 words.",
-			"经验分享":    "Share a brief relevant personal experience, max 60 words.",
+		// 优先用模板库，没有模板才调 LLM
+		var comment string
+		templates := os.Getenv("COMMENT_TEMPLATES")
+		if templates != "" {
+			tpls := strings.Split(templates, "\n")
+			var valid []string
+			for _, t := range tpls {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					valid = append(valid, t)
+				}
+			}
+			if len(valid) > 0 {
+				comment = valid[int(time.Now().UnixNano()%int64(len(valid)))]
+			}
 		}
-		style := styleMap[getenv("COMMENT_STYLE", "有价值的补充")]
-		comment := llmAsk(fmt.Sprintf(`Post: %s
+		if comment == "" {
+			// 没有模板，用 LLM 生成
+			styleMap := map[string]string{
+				"有价值的补充": "Add a useful piece of information not mentioned in the post, max 50 words.",
+				"提问互动":    "Ask a specific genuine question, max 30 words.",
+				"经验分享":    "Share a brief relevant personal experience, max 60 words.",
+			}
+			style := styleMap[getenv("COMMENT_STYLE", "有价值的补充")]
+			comment = llmAsk(fmt.Sprintf(`Post: %s
 
 Task: %s
 
 Rules: sound like a real person, no links, no promotions, no @mentions. Return only the comment.`,
-			fmt.Sprint(target["content"]), style))
+				fmt.Sprint(target["content"]), style))
+		}
 
 		if comment == "" || !isSafeComment(comment) {
 			logMsg("⚠️  评论生成失败或被过滤，跳过")
@@ -1167,6 +1223,7 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 		"BRAND_NAME":              os.Getenv("BRAND_NAME"),
 		"BRAND_TONE":              os.Getenv("BRAND_TONE"),
 		"COMMENT_KEYWORDS":        os.Getenv("COMMENT_KEYWORDS"),
+		"COMMENT_TEMPLATES":       os.Getenv("COMMENT_TEMPLATES"),
 		"COMMENT_DAILY_LIMIT":     getenv("COMMENT_DAILY_LIMIT", "30"),
 		"LLM_DAILY_LIMIT":         getenv("LLM_DAILY_LIMIT", "200"),
 		"NOTIFY_WEBHOOK":          os.Getenv("NOTIFY_WEBHOOK"),
