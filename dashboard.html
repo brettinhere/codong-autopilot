@@ -490,7 +490,7 @@ function pillStatus(s) {
 setLang('zh')
 
 // ══ SSE ════════════════════════════════════════════════════════════════════
-const es = new EventSource('/ws')
+const es = new EventSource('/autopilot/ws')
 es.onopen  = () => updateStatusBadge(true)
 es.onerror = () => updateStatusBadge(false)
 es.onmessage = e => {
@@ -538,7 +538,7 @@ function addLog(msg) {
   if (wrap.children.length > 60) wrap.removeChild(wrap.lastChild)
 }
 
-fetch('/api/logs').then(r=>r.json()).then(logs => {
+fetch('/autopilot/api/logs').then(r=>r.json()).then(logs => {
   if (!logs) return
   logs.forEach(l => {
     const wrap = document.getElementById('log-container')
@@ -551,7 +551,7 @@ fetch('/api/logs').then(r=>r.json()).then(logs => {
 
 // ══ queue ══════════════════════════════════════════════════════════════════
 function loadQueue() {
-  fetch('/api/queue').then(r=>r.json()).then(rows => {
+  fetch('/autopilot/api/queue').then(r=>r.json()).then(rows => {
     const tb = document.getElementById('queue-body')
     if (!rows || !rows.length) {
       tb.innerHTML = `<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">${T[lang].empty_queue}</td></tr>`
@@ -573,7 +573,7 @@ function addPost() {
   const t        = document.getElementById('q-time').value
   if (!content || !t) { alert(lang==='zh'?'请填写内容和时间':'Please fill in content and time'); return }
   const publish_at = t.replace('T',' ') + ':00'
-  fetch('/api/queue/add', {
+  fetch('/autopilot/api/queue/add', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ platform, content, publish_at })
   })
@@ -604,7 +604,7 @@ function loadComments() {
 
 // ══ config ═════════════════════════════════════════════════════════════════
 function loadConfig() {
-  fetch('/api/config').then(r=>r.json()).then(d => {
+  fetch('/autopilot/api/config').then(r=>r.json()).then(d => {
     document.getElementById('cfg-user-id').value     = d.TWITTER_USER_ID       || ''
     document.getElementById('cfg-xhs-user-id').value = d.XHS_USER_ID           || ''
     document.getElementById('cfg-li-user-id').value  = d.LINKEDIN_USER_ID      || ''
@@ -652,7 +652,7 @@ function saveConfig() {
   btn.textContent = lang === 'zh' ? '保存中...' : 'Saving...'
   msg.style.display = 'none'
 
-  fetch('/api/config/save', {
+  fetch('/autopilot/api/config/save', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)
   })
