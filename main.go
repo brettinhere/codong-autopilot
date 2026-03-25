@@ -381,157 +381,40 @@ func twitterReplies(tweetID string) []map[string]string {
 	return out
 }
 
-// ─── 小红书 ───────────────────────────────────────────────────────────────────
+// ─── 币安广场 ─────────────────────────────────────────────────────────────────
 
-func xhsRequest(method, path string, body interface{}) (*http.Response, error) {
-	cookie := os.Getenv("XHS_COOKIE")
-	if cookie == "" {
-		return nil, fmt.Errorf("XHS_COOKIE not set")
+func binanceSquarePost(content string) (string, error) {
+	apiKey := os.Getenv("BINANCE_SQUARE_API_KEY")
+	if apiKey == "" {
+		return "", fmt.Errorf("BINANCE_SQUARE_API_KEY not set")
 	}
-	var reqBody io.Reader
-	if body != nil {
-		b, _ := json.Marshal(body)
-		reqBody = strings.NewReader(string(b))
-	}
-	req, _ := http.NewRequest(method, "https://www.xiaohongshu.com"+path, reqBody)
-	req.Header.Set("Cookie", cookie)
-	req.Header.Set("User-Agent", randomUA())
+	b, _ := json.Marshal(map[string]string{"bodyTextOnly": content})
+	req, _ := http.NewRequest("POST",
+		"https://www.binance.com/bapi/composite/v1/public/pgc/openApi/content/add",
+		strings.NewReader(string(b)))
+	req.Header.Set("X-Square-OpenAPI-Key", apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Referer", "https://www.xiaohongshu.com/")
-	return http.DefaultClient.Do(req)
-}
+	req.Header.Set("clienttype", "binanceSkill")
 
-func xhsPost(content string) (string, error) {
-	lines := strings.SplitN(content, "\n", 2)
-	title := lines[0]
-	if len(title) > 20 {
-		title = title[:20]
-	}
-	desc := content
-	resp, err := xhsRequest("POST", "/api/sns/v3/note/post", map[string]interface{}{
-		"note_type":    1,
-		"title":        title,
-		"desc":         desc,
-		"privacy_info": map[string]int{"op_type": 0},
-	})
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("xhs %d: %s", resp.StatusCode, string(raw))
-	}
+
 	var r struct {
-		Data struct {
-			NoteID string `json:"note_id"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			ID string `json:"id"`
 		} `json:"data"`
 	}
 	json.Unmarshal(raw, &r)
-	if r.Data.NoteID == "" {
-		return "", fmt.Errorf("xhs empty note_id: %s", string(raw))
+	if r.Code != "000000" {
+		return "", fmt.Errorf("binance square error %s: %s", r.Code, r.Message)
 	}
-	return r.Data.NoteID, nil
-}
-
-func xhsComment(noteID, text string) error {
-	resp, err := xhsRequest("POST", "/api/sns/v3/comment/post", map[string]interface{}{
-		"note_id":  noteID,
-		"content":  text,
-		"at_users": []string{},
-	})
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		raw, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("xhs comment %d: %s", resp.StatusCode, string(raw))
-	}
-	return nil
-}
-
-func xhsReply(noteID, commentID, text string) error {
-	resp, err := xhsRequest("POST", "/api/sns/v3/comment/post", map[string]interface{}{
-		"note_id":   noteID,
-		"content":   text,
-		"target_id": commentID,
-		"at_users":  []string{},
-	})
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		raw, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("xhs reply %d: %s", resp.StatusCode, string(raw))
-	}
-	return nil
-}
-
-func xhsSearch(keyword string) []map[string]interface{} {
-	resp, err := xhsRequest("GET", fmt.Sprintf("/api/sns/v3/search/notes?keyword=%s&page=1&page_size=20&sort=time",
-		url.QueryEscape(keyword)), nil)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	var r struct {
-		Data struct {
-			Notes []struct {
-				ID   string `json:"id"`
-				Desc string `json:"desc"`
-				User struct {
-					UserID   string `json:"user_id"`
-					Nickname string `json:"nickname"`
-				} `json:"user"`
-				InteractInfo struct {
-					LikedCount int `json:"liked_count"`
-				} `json:"interact_info"`
-				Time string `json:"time"`
-			} `json:"notes"`
-		} `json:"data"`
-	}
-	json.NewDecoder(resp.Body).Decode(&r)
-	myUID := os.Getenv("XHS_USER_ID")
-	var out []map[string]interface{}
-	for _, n := range r.Data.Notes {
-		if n.User.UserID == myUID {
-			continue
-		}
-		out = append(out, map[string]interface{}{
-			"post_id":    n.ID,
-			"content":    n.Desc,
-			"likes":      n.InteractInfo.LikedCount,
-			"created_at": n.Time,
-		})
-	}
-	return out
-}
-
-func xhsComments(noteID string) []map[string]string {
-	resp, err := xhsRequest("GET", fmt.Sprintf("/api/sns/v3/note/%s/comments?page=1&page_size=20", noteID), nil)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	var r struct {
-		Data struct {
-			Comments []struct {
-				ID      string `json:"id"`
-				Content string `json:"content"`
-				UserInfo struct {
-					UserID string `json:"user_id"`
-				} `json:"user_info"`
-			} `json:"comments"`
-		} `json:"data"`
-	}
-	json.NewDecoder(resp.Body).Decode(&r)
-	var out []map[string]string
-	for _, c := range r.Data.Comments {
-		out = append(out, map[string]string{"id": c.ID, "text": c.Content, "author_id": c.UserInfo.UserID})
-	}
-	return out
+	return r.Data.ID, nil
 }
 
 // ─── LinkedIn ─────────────────────────────────────────────────────────────────
@@ -756,10 +639,10 @@ func publishEngine() {
 					if err == nil {
 						postURL = "https://twitter.com/i/web/status/" + postID
 					}
-				case "xiaohongshu":
-					postID, err = xhsPost(post.Content)
+				case "binance_square":
+					postID, err = binanceSquarePost(post.Content)
 					if err == nil {
-						postURL = "https://www.xiaohongshu.com/explore/" + postID
+						postURL = "https://www.binance.com/square/post/" + postID
 					}
 				case "linkedin":
 					postID, err = linkedinPost(post.Content)
@@ -823,19 +706,13 @@ func replyEngine() {
 			switch post.Platform {
 			case "twitter":
 				comments = twitterReplies(post.PostID)
-			case "xiaohongshu":
-				comments = xhsComments(post.PostID)
-			case "linkedin":
-				// LinkedIn comment fetch requires extra API scope, skip for now
+			case "binance_square", "linkedin":
+				// 暂不支持评论读取 API
 				comments = nil
 			}
-			xhsMyUID := os.Getenv("XHS_USER_ID")
 			for _, c := range comments {
 				authorID := c["author_id"]
 				if post.Platform == "twitter" && myUID != "" && authorID == myUID {
-					continue
-				}
-				if post.Platform == "xiaohongshu" && xhsMyUID != "" && authorID == xhsMyUID {
 					continue
 				}
 				var exists int
@@ -855,8 +732,8 @@ Reply naturally (like a real person), max 50 words, no links or product mentions
 					switch post.Platform {
 					case "twitter":
 						_, replyErr = twitterPost(reply, c["id"])
-					case "xiaohongshu":
-						replyErr = xhsReply(post.PostID, c["id"], reply)
+					default:
+						replyErr = fmt.Errorf("reply not supported for platform: %s", post.Platform)
 					}
 					if replyErr == nil {
 						status = "success"
@@ -913,10 +790,11 @@ func commentEngine() {
 		switch platform {
 		case "twitter":
 			posts = twitterSearch(keyword)
-		case "xiaohongshu":
-			posts = xhsSearch(keyword)
 		case "linkedin":
 			posts = linkedinSearch(keyword)
+		default:
+			// binance_square 暂无公开搜索 API
+			posts = nil
 		}
 		if len(posts) == 0 {
 			time.Sleep(60 * time.Second)
@@ -998,12 +876,10 @@ Rules: sound like a real person, no links, no promotions, no @mentions. Return o
 		switch platform {
 		case "twitter":
 			_, commentErr = twitterPost(comment, postID)
-		case "xiaohongshu":
-			commentErr = xhsComment(postID, comment)
 		case "linkedin":
 			commentErr = linkedinComment(postID, comment)
 		default:
-			commentErr = fmt.Errorf("unsupported platform: %s", platform)
+			commentErr = fmt.Errorf("comment not supported for platform: %s", platform)
 		}
 		status := "success"
 		errMsg := ""
@@ -1215,8 +1091,7 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 		"TWITTER_ACCESS_SECRET":   mask(os.Getenv("TWITTER_ACCESS_SECRET")),
 		"TWITTER_BEARER_TOKEN":    mask(os.Getenv("TWITTER_BEARER_TOKEN")),
 		"TWITTER_USER_ID":         os.Getenv("TWITTER_USER_ID"),
-		"XHS_COOKIE":              mask(os.Getenv("XHS_COOKIE")),
-		"XHS_USER_ID":             os.Getenv("XHS_USER_ID"),
+		"BINANCE_SQUARE_API_KEY":  mask(os.Getenv("BINANCE_SQUARE_API_KEY")),
 		"LINKEDIN_ACCESS_TOKEN":   mask(os.Getenv("LINKEDIN_ACCESS_TOKEN")),
 		"LINKEDIN_USER_ID":        os.Getenv("LINKEDIN_USER_ID"),
 		"TARGET_PLATFORMS":        getenv("TARGET_PLATFORMS", "twitter"),

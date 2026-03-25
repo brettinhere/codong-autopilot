@@ -198,7 +198,7 @@ select.form-input { cursor:pointer; }
             <label class="form-label" data-i18n="platform">平台</label>
             <select class="form-input" id="q-platform">
               <option value="twitter">Twitter / X</option>
-              <option value="xiaohongshu">小红书</option>
+              <option value="binance_square">币安广场</option>
               <option value="linkedin">LinkedIn</option>
             </select>
           </div>
@@ -298,17 +298,13 @@ select.form-input { cursor:pointer; }
     </div>
 
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header">📕 <span data-i18n="xhs_credentials">小红书凭证</span></div>
+      <div class="section-header">🟡 <span data-i18n="bs_credentials">币安广场凭证</span></div>
       <div class="section-body">
-        <p class="hint" data-i18n="xhs_hint">登录小红书网页版后，在浏览器 DevTools → Application → Cookies 复制 Cookie 字符串。</p>
+        <p class="hint" data-i18n="bs_hint">在 <a href="https://www.binance.com/zh-CN/square/creator-center" target="_blank">币安广场创作者中心</a> 点击「创建 API 密钥」，复制后填入下方。每日最多发帖 100 条，仅支持纯文本。</p>
         <div class="form-grid">
           <div class="form-group full">
-            <label class="form-label">Cookie</label>
-            <textarea class="form-input" id="cfg-xhs-cookie" rows="3" data-i18n-placeholder="keep_current"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="xhs_user_id">小红书 User ID</label>
-            <input class="form-input" id="cfg-xhs-user-id" placeholder="e.g. 5f3c...">
+            <label class="form-label">API Key</label>
+            <input class="form-input" id="cfg-bs-key" type="password" data-i18n-placeholder="keep_current">
           </div>
         </div>
       </div>
@@ -341,7 +337,7 @@ select.form-input { cursor:pointer; }
               <input type="checkbox" id="plat-twitter" value="twitter"> Twitter / X
             </label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#c9d1d9">
-              <input type="checkbox" id="plat-xhs" value="xiaohongshu"> 小红书
+              <input type="checkbox" id="plat-bs" value="binance_square"> 🟡 币安广场
             </label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#c9d1d9">
               <input type="checkbox" id="plat-li" value="linkedin"> LinkedIn
@@ -417,9 +413,8 @@ const T = {
     twitter_hint:'在 developer.twitter.com 获取凭证。填写后点保存，数据写入服务器 autopilot.env，不进代码仓库。',
     keep_current:'留空则保留当前值',
     twitter_user_id:'Twitter User ID',
-    xhs_credentials:'小红书凭证',
-    xhs_hint:'登录小红书网页版后，在浏览器 DevTools → Application → Cookies 复制 Cookie 字符串。',
-    xhs_user_id:'小红书 User ID',
+    bs_credentials:'币安广场凭证',
+    bs_hint:'在币安广场创作者中心点击「创建 API 密钥」，复制后填入。每日最多发帖 100 条，仅支持纯文本。',
     li_credentials:'LinkedIn 凭证',
     li_hint:'在 LinkedIn Developer Apps 创建应用，获取 OAuth 2.0 Access Token（需要 w_member_social 权限）。',
     li_token:'Access Token', li_user_id:'LinkedIn Person ID',
@@ -461,9 +456,8 @@ const T = {
     twitter_hint:'Get your credentials at developer.twitter.com. Values are saved to autopilot.env on the server and never committed to git.',
     keep_current:'Leave blank to keep current',
     twitter_user_id:'Twitter User ID',
-    xhs_credentials:'Xiaohongshu (XHS) Credentials',
-    xhs_hint:'Login to xiaohongshu.com in browser, then copy Cookie string from DevTools → Application → Cookies.',
-    xhs_user_id:'XHS User ID',
+    bs_credentials:'Binance Square Credentials',
+    bs_hint:'Go to Binance Square Creator Center → Create API Key → copy and paste below. Max 100 posts/day, text only.',
     li_credentials:'LinkedIn Credentials',
     li_hint:'Create an app at LinkedIn Developer Apps and get an OAuth 2.0 Access Token with w_member_social scope.',
     li_token:'Access Token', li_user_id:'LinkedIn Person ID',
@@ -644,7 +638,7 @@ function loadComments() {
 function loadConfig() {
   fetch('/autopilot/api/config').then(r=>r.json()).then(d => {
     document.getElementById('cfg-user-id').value     = d.TWITTER_USER_ID       || ''
-    document.getElementById('cfg-xhs-user-id').value = d.XHS_USER_ID           || ''
+    // cfg-bs-key 是密码框，留空保留当前值，不回显
     document.getElementById('cfg-li-user-id').value  = d.LINKEDIN_USER_ID      || ''
     document.getElementById('cfg-brand').value        = d.BRAND_NAME            || ''
     document.getElementById('cfg-tone').value         = d.BRAND_TONE            || ''
@@ -656,14 +650,14 @@ function loadConfig() {
     // platform checkboxes
     const plats = (d.TARGET_PLATFORMS || 'twitter').split(',').map(s=>s.trim())
     document.getElementById('plat-twitter').checked = plats.includes('twitter')
-    document.getElementById('plat-xhs').checked     = plats.includes('xiaohongshu')
+    document.getElementById('plat-bs').checked      = plats.includes('binance_square')
     document.getElementById('plat-li').checked      = plats.includes('linkedin')
   })
 }
 
 function saveConfig() {
-  const platMap = {twitter:'twitter', xiaohongshu:'xhs', linkedin:'li'}
-  const plats = ['twitter','xiaohongshu','linkedin']
+  const platMap = {twitter:'twitter', binance_square:'bs', linkedin:'li'}
+  const plats = ['twitter','binance_square','linkedin']
     .filter(p => document.getElementById('plat-'+platMap[p]).checked)
     .join(',') || 'twitter'
   const body = {
@@ -673,8 +667,7 @@ function saveConfig() {
     TWITTER_ACCESS_SECRET: document.getElementById('cfg-access-secret').value,
     TWITTER_BEARER_TOKEN:  document.getElementById('cfg-bearer').value,
     TWITTER_USER_ID:       document.getElementById('cfg-user-id').value,
-    XHS_COOKIE:            document.getElementById('cfg-xhs-cookie').value,
-    XHS_USER_ID:           document.getElementById('cfg-xhs-user-id').value,
+    BINANCE_SQUARE_API_KEY: document.getElementById('cfg-bs-key').value,
     LINKEDIN_ACCESS_TOKEN: document.getElementById('cfg-li-token').value,
     LINKEDIN_USER_ID:      document.getElementById('cfg-li-user-id').value,
     TARGET_PLATFORMS:      plats,
