@@ -361,8 +361,8 @@ select.form-input { cursor:pointer; }
     </div>
 
     <div style="display:flex;gap:10px;align-items:center">
-      <button class="btn btn-primary" onclick="saveConfig()" data-i18n="btn_save">保存配置</button>
-      <span class="save-msg" id="cfg-save-msg" data-i18n="saved">✓ 已保存！</span>
+      <button class="btn btn-primary" id="btn-save-cfg" onclick="saveConfig()" data-i18n="btn_save">保存配置</button>
+      <span id="cfg-save-msg" style="font-size:12px;display:none"></span>
     </div>
   </div>
 
@@ -576,13 +576,23 @@ function addPost() {
   fetch('/api/queue/add', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ platform, content, publish_at })
-  }).then(r=>r.json()).then(() => {
+  })
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
+  .then(() => {
     document.getElementById('q-content').value = ''
     const m = document.getElementById('post-msg')
-    m.textContent = T[lang].added
+    m.textContent = '✅ ' + T[lang].added
+    m.style.color = '#3fb950'
     m.style.display = 'inline'
-    setTimeout(()=>m.style.display='none', 2500)
+    setTimeout(() => m.style.display='none', 2500)
     loadQueue()
+  })
+  .catch(e => {
+    const m = document.getElementById('post-msg')
+    m.textContent = '❌ ' + (lang==='zh'?'失败: ':'Error: ') + e.message
+    m.style.color = '#ff7b72'
+    m.style.display = 'inline'
+    setTimeout(() => m.style.display='none', 4000)
   })
 }
 
@@ -636,14 +646,37 @@ function saveConfig() {
     LLM_DAILY_LIMIT:       document.getElementById('cfg-llm-limit').value,
     NOTIFY_WEBHOOK:        document.getElementById('cfg-webhook').value,
   }
+  const btn = document.getElementById('btn-save-cfg')
+  const msg = document.getElementById('cfg-save-msg')
+  btn.disabled = true
+  btn.textContent = lang === 'zh' ? '保存中...' : 'Saving...'
+  msg.style.display = 'none'
+
   fetch('/api/config/save', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)
-  }).then(r=>r.json()).then(() => {
-    const m = document.getElementById('cfg-save-msg')
-    m.textContent = T[lang].saved
-    m.style.display = 'inline'
-    setTimeout(()=>m.style.display='none', 2500)
+  })
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
+  .then(d => {
+    if (d.ok) {
+      msg.textContent = '✅ ' + T[lang].saved
+      msg.style.color = '#3fb950'
+    } else {
+      msg.textContent = '❌ ' + (lang==='zh'?'保存失败':'Save failed')
+      msg.style.color = '#ff7b72'
+    }
+    msg.style.display = 'inline'
+    setTimeout(() => { msg.style.display = 'none' }, 3000)
+  })
+  .catch(e => {
+    msg.textContent = '❌ ' + (lang==='zh'?'网络错误: ':'Network error: ') + e.message
+    msg.style.color = '#ff7b72'
+    msg.style.display = 'inline'
+    setTimeout(() => { msg.style.display = 'none' }, 5000)
+  })
+  .finally(() => {
+    btn.disabled = false
+    btn.textContent = T[lang].btn_save
   })
 }
 
