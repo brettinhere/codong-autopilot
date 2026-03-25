@@ -38,6 +38,10 @@ var (
 	eventCh  = make(chan Event, 256)
 	wsMu     sync.Mutex
 	wsConns  []chan string
+
+	// 引擎开关，默认关闭，需要用户手动启动
+	engineRunning bool
+	engineMu      sync.Mutex
 )
 
 type Event struct {
@@ -62,7 +66,7 @@ func main() {
 	port := getenv("DASHBOARD_PORT", "8083")
 	logMsg("🤖 Codong Autopilot v1.1 启动 → http://localhost:" + port)
 	logMsg("   平台: " + getenv("TARGET_PLATFORMS", "twitter"))
-	logMsg("   引流关键词: " + getenv("COMMENT_KEYWORDS", ""))
+	logMsg("   ⏸️  引擎已暂停，请在控制台点击「启动引擎」开始工作")
 
 	http.HandleFunc("/", serveHTML)
 	http.HandleFunc("/ws", serveWS)
@@ -72,6 +76,9 @@ func main() {
 	http.HandleFunc("/api/config", handleConfig)
 	http.HandleFunc("/api/config/save", handleConfigSave)
 	http.HandleFunc("/api/logs", handleLogs)
+	http.HandleFunc("/api/engine/start", handleEngineStart)
+	http.HandleFunc("/api/engine/stop", handleEngineStop)
+	http.HandleFunc("/api/engine/status", handleEngineStatus)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
@@ -651,10 +658,45 @@ func isSafeComment(text string) bool {
 
 // ─── publish engine ──────────────────────────────────────────────────────────
 
+func isEngineRunning() bool {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	return engineRunning
+}
+
+func handleEngineStart(w http.ResponseWriter, r *http.Request) {
+	engineMu.Lock()
+	engineRunning = true
+	engineMu.Unlock()
+	logMsg("▶️  引擎已启动")
+	broadcastEvent(Event{Ev: "engine_status", Data: map[string]bool{"running": true}, Time: time.Now().Format("15:04:05")})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true, "running": true})
+}
+
+func handleEngineStop(w http.ResponseWriter, r *http.Request) {
+	engineMu.Lock()
+	engineRunning = false
+	engineMu.Unlock()
+	logMsg("⏸️  引擎已暂停")
+	broadcastEvent(Event{Ev: "engine_status", Data: map[string]bool{"running": false}, Time: time.Now().Format("15:04:05")})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true, "running": false})
+}
+
+func handleEngineStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"running": isEngineRunning()})
+}
+
 func publishEngine() {
 	time.Sleep(3 * time.Second)
-	logMsg("⏰ 发布引擎启动")
+	logMsg("⏰ 发布引擎就绪（等待启动）")
 	for {
+		if !isEngineRunning() {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 		rows, err := db.Query(`SELECT id, platform, content, retry_count FROM post_queue
 			WHERE status='ready' AND publish_at <= datetime('now') LIMIT 5`)
 		if err == nil {
@@ -723,11 +765,15 @@ func publishEngine() {
 
 func replyEngine() {
 	time.Sleep(5 * time.Second)
-	logMsg("💬 自动回复引擎启动")
+	logMsg("💬 自动回复引擎就绪（等待启动）")
 	myUID := os.Getenv("TWITTER_USER_ID")
 	brandTone := getenv("BRAND_TONE", "专业、友好、有价值感")
 
 	for {
+		if !isEngineRunning() {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 		rows, _ := db.Query(`SELECT post_id, platform FROM post_queue
 			WHERE status='published' AND published_at >= datetime('now','-7 days') AND post_id IS NOT NULL`)
 		var posts []struct{ PostID, Platform string }
@@ -802,9 +848,13 @@ Reply naturally (like a real person), max 50 words, no links or product mentions
 
 func commentEngine() {
 	time.Sleep(8 * time.Second)
-	logMsg("🔍 评论引流引擎启动")
+	logMsg("🔍 评论引擎就绪（等待启动）")
 
 	for {
+		if !isEngineRunning() {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 		dailyMax, _ := strconv.Atoi(getenv("COMMENT_DAILY_LIMIT", "30"))
 		today := todayPrefix()
 		var todayCount int

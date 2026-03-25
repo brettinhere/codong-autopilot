@@ -108,6 +108,7 @@ select.form-input { cursor:pointer; }
       <span class="page-title" data-i18n="nav_dashboard">实时概览</span>
       <div class="header-right">
         <span class="badge" id="status-badge">● 连接中...</span>
+        <button id="engine-btn" class="btn btn-outline btn-sm" onclick="toggleEngine()" style="min-width:100px">⏳ 加载中</button>
         <div class="lang-switch">
           <button class="lang-btn active" onclick="setLang('zh')">中文</button>
           <button class="lang-btn" onclick="setLang('en')">EN</button>
@@ -495,6 +496,7 @@ es.onopen  = () => updateStatusBadge(true)
 es.onerror = () => updateStatusBadge(false)
 es.onmessage = e => {
   const msg = JSON.parse(e.data)
+  if (msg.event === 'engine_status') { renderEngineBtn(msg.data?.running); return }
   if (msg.event === 'snapshot') renderSnapshot(msg.data)
   else addLog(msg)
 }
@@ -690,6 +692,33 @@ function showPage(name, el) {
   if (name==='comments') loadComments()
   if (name==='config')   loadConfig()
 }
+
+// ══ engine toggle ══════════════════════════════════════════════════════════
+let engineOn = false
+
+function renderEngineBtn(running) {
+  engineOn = running
+  const btn = document.getElementById('engine-btn')
+  if (running) {
+    btn.textContent = '⏸ ' + (lang==='zh'?'暂停引擎':'Pause')
+    btn.style.background = 'rgba(255,123,114,.15)'
+    btn.style.borderColor = '#ff7b72'
+    btn.style.color = '#ff7b72'
+  } else {
+    btn.textContent = '▶ ' + (lang==='zh'?'启动引擎':'Start')
+    btn.style.background = 'rgba(63,185,80,.15)'
+    btn.style.borderColor = '#3fb950'
+    btn.style.color = '#3fb950'
+  }
+}
+
+function toggleEngine() {
+  const url = engineOn ? '/autopilot/api/engine/stop' : '/autopilot/api/engine/start'
+  fetch(url, {method:'POST'}).then(r=>r.json()).then(d => renderEngineBtn(d.running))
+}
+
+// 页面加载时获取引擎状态
+fetch('/autopilot/api/engine/status').then(r=>r.json()).then(d => renderEngineBtn(d.running))
 
 // ══ helpers ════════════════════════════════════════════════════════════════
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;') }
