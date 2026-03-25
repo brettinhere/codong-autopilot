@@ -175,6 +175,8 @@ select.form-input { cursor:pointer; }
             <label class="form-label" data-i18n="platform">平台</label>
             <select class="form-input" id="q-platform">
               <option value="twitter">Twitter / X</option>
+              <option value="xiaohongshu">小红书</option>
+              <option value="linkedin">LinkedIn</option>
             </select>
           </div>
           <div class="form-group">
@@ -265,8 +267,62 @@ select.form-input { cursor:pointer; }
             <input class="form-input" id="cfg-bearer" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
-            <label class="form-label" data-i18n="your_user_id">你的 Twitter User ID</label>
+            <label class="form-label" data-i18n="twitter_user_id">Twitter User ID</label>
             <input class="form-input" id="cfg-user-id" placeholder="e.g. 1234567890">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">📕 <span data-i18n="xhs_credentials">小红书凭证</span></div>
+      <div class="section-body">
+        <p class="hint" data-i18n="xhs_hint">登录小红书网页版后，在浏览器 DevTools → Application → Cookies 复制 Cookie 字符串。</p>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Cookie</label>
+            <textarea class="form-input" id="cfg-xhs-cookie" rows="3" data-i18n-placeholder="keep_current"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="xhs_user_id">小红书 User ID</label>
+            <input class="form-input" id="cfg-xhs-user-id" placeholder="e.g. 5f3c...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">💼 <span data-i18n="li_credentials">LinkedIn 凭证</span></div>
+      <div class="section-body">
+        <p class="hint" data-i18n="li_hint">在 <a href="https://www.linkedin.com/developers/apps" target="_blank">LinkedIn Developer Apps</a> 创建应用，获取 OAuth 2.0 Access Token（需要 w_member_social 权限）。</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" data-i18n="li_token">Access Token</label>
+            <input class="form-input" id="cfg-li-token" type="password" data-i18n-placeholder="keep_current">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="li_user_id">LinkedIn Person ID</label>
+            <input class="form-input" id="cfg-li-user-id" placeholder="e.g. xxxxxxxx">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">🎯 <span data-i18n="target_platforms">启用平台</span></div>
+      <div class="section-body">
+        <div class="form-group">
+          <label class="form-label" data-i18n="platforms_label">勾选要启用的平台（逗号分隔写入配置）</label>
+          <div style="display:flex;gap:16px;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#c9d1d9">
+              <input type="checkbox" id="plat-twitter" value="twitter"> Twitter / X
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#c9d1d9">
+              <input type="checkbox" id="plat-xhs" value="xiaohongshu"> 小红书
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#c9d1d9">
+              <input type="checkbox" id="plat-li" value="linkedin"> LinkedIn
+            </label>
           </div>
         </div>
       </div>
@@ -333,7 +389,14 @@ const T = {
     credentials:'凭证',
     twitter_hint:'在 developer.twitter.com 获取凭证。填写后点保存，数据写入服务器 autopilot.env，不进代码仓库。',
     keep_current:'留空则保留当前值',
-    your_user_id:'你的 Twitter User ID',
+    twitter_user_id:'Twitter User ID',
+    xhs_credentials:'小红书凭证',
+    xhs_hint:'登录小红书网页版后，在浏览器 DevTools → Application → Cookies 复制 Cookie 字符串。',
+    xhs_user_id:'小红书 User ID',
+    li_credentials:'LinkedIn 凭证',
+    li_hint:'在 LinkedIn Developer Apps 创建应用，获取 OAuth 2.0 Access Token（需要 w_member_social 权限）。',
+    li_token:'Access Token', li_user_id:'LinkedIn Person ID',
+    target_platforms:'启用平台', platforms_label:'勾选要启用的平台',
     brand_settings:'品牌 & 评论设置',
     brand_name:'品牌名称', brand_name_ph:'你的品牌名',
     brand_tone:'品牌语气', brand_tone_ph:'例如：专业、友好、有价值感',
@@ -365,7 +428,14 @@ const T = {
     credentials:'Credentials',
     twitter_hint:'Get your credentials at developer.twitter.com. Values are saved to autopilot.env on the server and never committed to git.',
     keep_current:'Leave blank to keep current',
-    your_user_id:'Your Twitter User ID',
+    twitter_user_id:'Twitter User ID',
+    xhs_credentials:'Xiaohongshu (XHS) Credentials',
+    xhs_hint:'Login to xiaohongshu.com in browser, then copy Cookie string from DevTools → Application → Cookies.',
+    xhs_user_id:'XHS User ID',
+    li_credentials:'LinkedIn Credentials',
+    li_hint:'Create an app at LinkedIn Developer Apps and get an OAuth 2.0 Access Token with w_member_social scope.',
+    li_token:'Access Token', li_user_id:'LinkedIn Person ID',
+    target_platforms:'Active Platforms', platforms_label:'Check platforms to enable',
     brand_settings:'Brand & Comment Settings',
     brand_name:'Brand Name', brand_name_ph:'Your brand name',
     brand_tone:'Brand Tone', brand_tone_ph:'e.g. professional, friendly, value-driven',
@@ -525,17 +595,28 @@ function loadComments() {
 // ══ config ═════════════════════════════════════════════════════════════════
 function loadConfig() {
   fetch('/api/config').then(r=>r.json()).then(d => {
-    document.getElementById('cfg-user-id').value    = d.TWITTER_USER_ID     || ''
-    document.getElementById('cfg-brand').value      = d.BRAND_NAME           || ''
-    document.getElementById('cfg-tone').value       = d.BRAND_TONE           || ''
-    document.getElementById('cfg-keywords').value   = d.COMMENT_KEYWORDS     || ''
-    document.getElementById('cfg-daily-limit').value= d.COMMENT_DAILY_LIMIT  || '30'
-    document.getElementById('cfg-llm-limit').value  = d.LLM_DAILY_LIMIT      || '200'
-    document.getElementById('cfg-webhook').value    = d.NOTIFY_WEBHOOK       || ''
+    document.getElementById('cfg-user-id').value     = d.TWITTER_USER_ID       || ''
+    document.getElementById('cfg-xhs-user-id').value = d.XHS_USER_ID           || ''
+    document.getElementById('cfg-li-user-id').value  = d.LINKEDIN_USER_ID      || ''
+    document.getElementById('cfg-brand').value        = d.BRAND_NAME            || ''
+    document.getElementById('cfg-tone').value         = d.BRAND_TONE            || ''
+    document.getElementById('cfg-keywords').value     = d.COMMENT_KEYWORDS      || ''
+    document.getElementById('cfg-daily-limit').value  = d.COMMENT_DAILY_LIMIT   || '30'
+    document.getElementById('cfg-llm-limit').value    = d.LLM_DAILY_LIMIT       || '200'
+    document.getElementById('cfg-webhook').value      = d.NOTIFY_WEBHOOK        || ''
+    // platform checkboxes
+    const plats = (d.TARGET_PLATFORMS || 'twitter').split(',').map(s=>s.trim())
+    document.getElementById('plat-twitter').checked = plats.includes('twitter')
+    document.getElementById('plat-xhs').checked     = plats.includes('xiaohongshu')
+    document.getElementById('plat-li').checked      = plats.includes('linkedin')
   })
 }
 
 function saveConfig() {
+  const platMap = {twitter:'twitter', xiaohongshu:'xhs', linkedin:'li'}
+  const plats = ['twitter','xiaohongshu','linkedin']
+    .filter(p => document.getElementById('plat-'+platMap[p]).checked)
+    .join(',') || 'twitter'
   const body = {
     TWITTER_API_KEY:       document.getElementById('cfg-api-key').value,
     TWITTER_API_SECRET:    document.getElementById('cfg-api-secret').value,
@@ -543,6 +624,11 @@ function saveConfig() {
     TWITTER_ACCESS_SECRET: document.getElementById('cfg-access-secret').value,
     TWITTER_BEARER_TOKEN:  document.getElementById('cfg-bearer').value,
     TWITTER_USER_ID:       document.getElementById('cfg-user-id').value,
+    XHS_COOKIE:            document.getElementById('cfg-xhs-cookie').value,
+    XHS_USER_ID:           document.getElementById('cfg-xhs-user-id').value,
+    LINKEDIN_ACCESS_TOKEN: document.getElementById('cfg-li-token').value,
+    LINKEDIN_USER_ID:      document.getElementById('cfg-li-user-id').value,
+    TARGET_PLATFORMS:      plats,
     BRAND_NAME:            document.getElementById('cfg-brand').value,
     BRAND_TONE:            document.getElementById('cfg-tone').value,
     COMMENT_KEYWORDS:      document.getElementById('cfg-keywords').value,

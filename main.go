@@ -372,6 +372,257 @@ func twitterReplies(tweetID string) []map[string]string {
 	return out
 }
 
+// ─── 小红书 ───────────────────────────────────────────────────────────────────
+
+func xhsRequest(method, path string, body interface{}) (*http.Response, error) {
+	cookie := os.Getenv("XHS_COOKIE")
+	if cookie == "" {
+		return nil, fmt.Errorf("XHS_COOKIE not set")
+	}
+	var reqBody io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		reqBody = strings.NewReader(string(b))
+	}
+	req, _ := http.NewRequest(method, "https://www.xiaohongshu.com"+path, reqBody)
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("User-Agent", randomUA())
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Referer", "https://www.xiaohongshu.com/")
+	return http.DefaultClient.Do(req)
+}
+
+func xhsPost(content string) (string, error) {
+	lines := strings.SplitN(content, "\n", 2)
+	title := lines[0]
+	if len(title) > 20 {
+		title = title[:20]
+	}
+	desc := content
+	resp, err := xhsRequest("POST", "/api/sns/v3/note/post", map[string]interface{}{
+		"note_type":    1,
+		"title":        title,
+		"desc":         desc,
+		"privacy_info": map[string]int{"op_type": 0},
+	})
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("xhs %d: %s", resp.StatusCode, string(raw))
+	}
+	var r struct {
+		Data struct {
+			NoteID string `json:"note_id"`
+		} `json:"data"`
+	}
+	json.Unmarshal(raw, &r)
+	if r.Data.NoteID == "" {
+		return "", fmt.Errorf("xhs empty note_id: %s", string(raw))
+	}
+	return r.Data.NoteID, nil
+}
+
+func xhsComment(noteID, text string) error {
+	resp, err := xhsRequest("POST", "/api/sns/v3/comment/post", map[string]interface{}{
+		"note_id":  noteID,
+		"content":  text,
+		"at_users": []string{},
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		raw, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("xhs comment %d: %s", resp.StatusCode, string(raw))
+	}
+	return nil
+}
+
+func xhsReply(noteID, commentID, text string) error {
+	resp, err := xhsRequest("POST", "/api/sns/v3/comment/post", map[string]interface{}{
+		"note_id":   noteID,
+		"content":   text,
+		"target_id": commentID,
+		"at_users":  []string{},
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		raw, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("xhs reply %d: %s", resp.StatusCode, string(raw))
+	}
+	return nil
+}
+
+func xhsSearch(keyword string) []map[string]interface{} {
+	resp, err := xhsRequest("GET", fmt.Sprintf("/api/sns/v3/search/notes?keyword=%s&page=1&page_size=20&sort=time",
+		url.QueryEscape(keyword)), nil)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	var r struct {
+		Data struct {
+			Notes []struct {
+				ID   string `json:"id"`
+				Desc string `json:"desc"`
+				User struct {
+					UserID   string `json:"user_id"`
+					Nickname string `json:"nickname"`
+				} `json:"user"`
+				InteractInfo struct {
+					LikedCount int `json:"liked_count"`
+				} `json:"interact_info"`
+				Time string `json:"time"`
+			} `json:"notes"`
+		} `json:"data"`
+	}
+	json.NewDecoder(resp.Body).Decode(&r)
+	myUID := os.Getenv("XHS_USER_ID")
+	var out []map[string]interface{}
+	for _, n := range r.Data.Notes {
+		if n.User.UserID == myUID {
+			continue
+		}
+		out = append(out, map[string]interface{}{
+			"post_id":    n.ID,
+			"content":    n.Desc,
+			"likes":      n.InteractInfo.LikedCount,
+			"created_at": n.Time,
+		})
+	}
+	return out
+}
+
+func xhsComments(noteID string) []map[string]string {
+	resp, err := xhsRequest("GET", fmt.Sprintf("/api/sns/v3/note/%s/comments?page=1&page_size=20", noteID), nil)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	var r struct {
+		Data struct {
+			Comments []struct {
+				ID      string `json:"id"`
+				Content string `json:"content"`
+				UserInfo struct {
+					UserID string `json:"user_id"`
+				} `json:"user_info"`
+			} `json:"comments"`
+		} `json:"data"`
+	}
+	json.NewDecoder(resp.Body).Decode(&r)
+	var out []map[string]string
+	for _, c := range r.Data.Comments {
+		out = append(out, map[string]string{"id": c.ID, "text": c.Content, "author_id": c.UserInfo.UserID})
+	}
+	return out
+}
+
+// ─── LinkedIn ─────────────────────────────────────────────────────────────────
+
+func linkedinPost(content string) (string, error) {
+	token := os.Getenv("LINKEDIN_ACCESS_TOKEN")
+	userID := os.Getenv("LINKEDIN_USER_ID")
+	if token == "" || userID == "" {
+		return "", fmt.Errorf("LINKEDIN_ACCESS_TOKEN or LINKEDIN_USER_ID not set")
+	}
+	body := map[string]interface{}{
+		"author":         "urn:li:person:" + userID,
+		"lifecycleState": "PUBLISHED",
+		"specificContent": map[string]interface{}{
+			"com.linkedin.ugc.ShareContent": map[string]interface{}{
+				"shareCommentary":    map[string]string{"text": content},
+				"shareMediaCategory": "NONE",
+			},
+		},
+		"visibility": map[string]string{
+			"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+		},
+	}
+	b, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", "https://api.linkedin.com/v2/ugcPosts", strings.NewReader(string(b)))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Restli-Protocol-Version", "2.0.0")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 201 {
+		return "", fmt.Errorf("linkedin %d: %s", resp.StatusCode, string(raw))
+	}
+	var r struct {
+		ID string `json:"id"`
+	}
+	json.Unmarshal(raw, &r)
+	return r.ID, nil
+}
+
+func linkedinComment(postURN, text string) error {
+	token := os.Getenv("LINKEDIN_ACCESS_TOKEN")
+	userID := os.Getenv("LINKEDIN_USER_ID")
+	body := map[string]interface{}{
+		"actor":   "urn:li:person:" + userID,
+		"message": map[string]string{"text": text},
+		"object":  postURN,
+	}
+	b, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", "https://api.linkedin.com/v2/socialActions/"+url.QueryEscape(postURN)+"/comments", strings.NewReader(string(b)))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 201 {
+		raw, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("linkedin comment %d: %s", resp.StatusCode, string(raw))
+	}
+	return nil
+}
+
+func linkedinSearch(keyword string) []map[string]interface{} {
+	token := os.Getenv("LINKEDIN_ACCESS_TOKEN")
+	if token == "" {
+		return nil
+	}
+	// LinkedIn UGC search by keyword via posts search
+	u := "https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List()&count=20"
+	req, _ := http.NewRequest("GET", u, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-Restli-Protocol-Version", "2.0.0")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	// LinkedIn doesn't have public keyword search via basic API
+	// Return empty — comment engine will skip LinkedIn for now
+	return nil
+}
+
+// random UA helper
+func randomUA() string {
+	pool := []string{
+		"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+		"Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/116.0.0.0 Mobile Safari/537.36",
+		"Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/20G75",
+		"Mozilla/5.0 (Linux; Android 12; SM-S906B) AppleWebKit/537.36 Chrome/112.0.0.0 Mobile Safari/537.36",
+	}
+	n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pool))))
+	return pool[n.Int64()]
+}
+
 // ─── safety filters ──────────────────────────────────────────────────────────
 
 var dangerWords = []string{"投诉", "骗局", "维权", "踩雷", "差评", "避坑", "黑幕", "诈骗", "虚假", "举报", "警告", "坑人", "后悔", "翻车", "赔偿", "退款", "律师", "起诉"}
@@ -423,12 +674,33 @@ func publishEngine() {
 
 			for _, post := range due {
 				logMsg(fmt.Sprintf("🚀 发布 [%s]", post.Platform))
-				tweetID, err := twitterPost(post.Content, "")
+				var postID string
+				var postURL string
+				var err error
+				switch post.Platform {
+				case "twitter":
+					postID, err = twitterPost(post.Content, "")
+					if err == nil {
+						postURL = "https://twitter.com/i/web/status/" + postID
+					}
+				case "xiaohongshu":
+					postID, err = xhsPost(post.Content)
+					if err == nil {
+						postURL = "https://www.xiaohongshu.com/explore/" + postID
+					}
+				case "linkedin":
+					postID, err = linkedinPost(post.Content)
+					if err == nil {
+						postURL = "https://www.linkedin.com/feed/"
+					}
+				default:
+					err = fmt.Errorf("unsupported platform: %s", post.Platform)
+				}
 				mu.Lock()
 				if err == nil {
-					db.Exec(`UPDATE post_queue SET status='published', post_id=?, published_at=datetime('now') WHERE id=?`, tweetID, post.ID)
-					logMsg(fmt.Sprintf("✅ [%s] 发布成功 → https://twitter.com/i/web/status/%s", post.Platform, tweetID))
-					broadcastEvent(Event{Ev: "published", Data: map[string]string{"platform": post.Platform, "url": "https://twitter.com/i/web/status/" + tweetID}, Time: time.Now().Format("15:04:05")})
+					db.Exec(`UPDATE post_queue SET status='published', post_id=?, published_at=datetime('now') WHERE id=?`, postID, post.ID)
+					logMsg(fmt.Sprintf("✅ [%s] 发布成功 → %s", post.Platform, postURL))
+					broadcastEvent(Event{Ev: "published", Data: map[string]string{"platform": post.Platform, "url": postURL}, Time: time.Now().Format("15:04:05")})
 				} else {
 					retry := post.Retry + 1
 					if retry >= 3 {
@@ -467,9 +739,23 @@ func replyEngine() {
 		rows.Close()
 
 		for _, post := range posts {
-			comments := twitterReplies(post.PostID)
+			var comments []map[string]string
+			switch post.Platform {
+			case "twitter":
+				comments = twitterReplies(post.PostID)
+			case "xiaohongshu":
+				comments = xhsComments(post.PostID)
+			case "linkedin":
+				// LinkedIn comment fetch requires extra API scope, skip for now
+				comments = nil
+			}
+			xhsMyUID := os.Getenv("XHS_USER_ID")
 			for _, c := range comments {
-				if myUID != "" && c["author_id"] == myUID {
+				authorID := c["author_id"]
+				if post.Platform == "twitter" && myUID != "" && authorID == myUID {
+					continue
+				}
+				if post.Platform == "xiaohongshu" && xhsMyUID != "" && authorID == xhsMyUID {
 					continue
 				}
 				var exists int
@@ -485,11 +771,17 @@ Reply naturally (like a real person), max 50 words, no links or product mentions
 
 				status := "failed"
 				if reply != "" && isSafeComment(reply) {
-					_, err := twitterPost(reply, c["id"])
-					if err == nil {
+					var replyErr error
+					switch post.Platform {
+					case "twitter":
+						_, replyErr = twitterPost(reply, c["id"])
+					case "xiaohongshu":
+						replyErr = xhsReply(post.PostID, c["id"], reply)
+					}
+					if replyErr == nil {
 						status = "success"
-						logMsg(fmt.Sprintf("↩️  [twitter] 回复完成"))
-						broadcastEvent(Event{Ev: "replied", Data: map[string]string{"reply": reply}, Time: time.Now().Format("15:04:05")})
+						logMsg(fmt.Sprintf("↩️  [%s] 回复完成", post.Platform))
+						broadcastEvent(Event{Ev: "replied", Data: map[string]string{"platform": post.Platform, "reply": reply}, Time: time.Now().Format("15:04:05")})
 					}
 				}
 				mu.Lock()
@@ -524,18 +816,28 @@ func commentEngine() {
 			continue
 		}
 
+		platforms := strings.Split(getenv("TARGET_PLATFORMS", "twitter"), ",")
+		platform := strings.TrimSpace(platforms[int(time.Now().Unix()%int64(len(platforms)))])
 		keywords := strings.Split(getenv("COMMENT_KEYWORDS", "AI tools"), ",")
-		keyword := strings.TrimSpace(keywords[int(time.Now().Unix()/13)%len(keywords)])
-		logMsg(fmt.Sprintf("🔍 [twitter] 搜索: %s", keyword))
+		keyword := strings.TrimSpace(keywords[int(time.Now().Unix()/13%int64(len(keywords)))])
+		logMsg(fmt.Sprintf("🔍 [%s] 搜索: %s", platform, keyword))
 
-		posts := twitterSearch(keyword)
+		var posts []map[string]interface{}
+		switch platform {
+		case "twitter":
+			posts = twitterSearch(keyword)
+		case "xiaohongshu":
+			posts = xhsSearch(keyword)
+		case "linkedin":
+			posts = linkedinSearch(keyword)
+		}
 		if len(posts) == 0 {
 			time.Sleep(60 * time.Second)
 			continue
 		}
 
 		// filter already commented
-		rows, _ := db.Query(`SELECT target_post_id FROM comment_log WHERE platform='twitter' AND status='success'`)
+		rows, _ := db.Query(`SELECT target_post_id FROM comment_log WHERE platform=? AND status='success'`, platform)
 		done := map[string]bool{}
 		for rows.Next() {
 			var id string
@@ -586,16 +888,26 @@ Rules: sound like a real person, no links, no promotions, no @mentions. Return o
 			VALUES ('twitter',?,?,?,'pending',datetime('now')) RETURNING id`, postID, keyword, comment).Scan(&recID)
 		mu.Unlock()
 
-		_, err := twitterPost(comment, postID)
+		var commentErr error
+		switch platform {
+		case "twitter":
+			_, commentErr = twitterPost(comment, postID)
+		case "xiaohongshu":
+			commentErr = xhsComment(postID, comment)
+		case "linkedin":
+			commentErr = linkedinComment(postID, comment)
+		default:
+			commentErr = fmt.Errorf("unsupported platform: %s", platform)
+		}
 		status := "success"
 		errMsg := ""
-		if err != nil {
+		if commentErr != nil {
 			status = "failed"
-			errMsg = err.Error()
-			logMsg(fmt.Sprintf("❌ 评论失败: %v", err))
+			errMsg = commentErr.Error()
+			logMsg(fmt.Sprintf("❌ [%s] 评论失败: %v", platform, commentErr))
 		} else {
-			logMsg(fmt.Sprintf("✅ 评论成功（今日第%d条）", todayCount+1))
-			broadcastEvent(Event{Ev: "commented", Data: map[string]string{"keyword": keyword, "comment": comment}, Time: time.Now().Format("15:04:05")})
+			logMsg(fmt.Sprintf("✅ [%s] 评论成功（今日第%d条）", platform, todayCount+1))
+			broadcastEvent(Event{Ev: "commented", Data: map[string]string{"platform": platform, "keyword": keyword, "comment": comment}, Time: time.Now().Format("15:04:05")})
 		}
 
 		mu.Lock()
@@ -791,18 +1103,23 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 		return ""
 	}
 	json.NewEncoder(w).Encode(map[string]string{
-		"TWITTER_API_KEY":       mask(os.Getenv("TWITTER_API_KEY")),
-		"TWITTER_API_SECRET":    mask(os.Getenv("TWITTER_API_SECRET")),
-		"TWITTER_ACCESS_TOKEN":  mask(os.Getenv("TWITTER_ACCESS_TOKEN")),
-		"TWITTER_ACCESS_SECRET": mask(os.Getenv("TWITTER_ACCESS_SECRET")),
-		"TWITTER_BEARER_TOKEN":  mask(os.Getenv("TWITTER_BEARER_TOKEN")),
-		"TWITTER_USER_ID":       os.Getenv("TWITTER_USER_ID"),
-		"BRAND_NAME":            os.Getenv("BRAND_NAME"),
-		"BRAND_TONE":            os.Getenv("BRAND_TONE"),
-		"COMMENT_KEYWORDS":      os.Getenv("COMMENT_KEYWORDS"),
-		"COMMENT_DAILY_LIMIT":   getenv("COMMENT_DAILY_LIMIT", "30"),
-		"LLM_DAILY_LIMIT":       getenv("LLM_DAILY_LIMIT", "200"),
-		"NOTIFY_WEBHOOK":        os.Getenv("NOTIFY_WEBHOOK"),
+		"TWITTER_API_KEY":         mask(os.Getenv("TWITTER_API_KEY")),
+		"TWITTER_API_SECRET":      mask(os.Getenv("TWITTER_API_SECRET")),
+		"TWITTER_ACCESS_TOKEN":    mask(os.Getenv("TWITTER_ACCESS_TOKEN")),
+		"TWITTER_ACCESS_SECRET":   mask(os.Getenv("TWITTER_ACCESS_SECRET")),
+		"TWITTER_BEARER_TOKEN":    mask(os.Getenv("TWITTER_BEARER_TOKEN")),
+		"TWITTER_USER_ID":         os.Getenv("TWITTER_USER_ID"),
+		"XHS_COOKIE":              mask(os.Getenv("XHS_COOKIE")),
+		"XHS_USER_ID":             os.Getenv("XHS_USER_ID"),
+		"LINKEDIN_ACCESS_TOKEN":   mask(os.Getenv("LINKEDIN_ACCESS_TOKEN")),
+		"LINKEDIN_USER_ID":        os.Getenv("LINKEDIN_USER_ID"),
+		"TARGET_PLATFORMS":        getenv("TARGET_PLATFORMS", "twitter"),
+		"BRAND_NAME":              os.Getenv("BRAND_NAME"),
+		"BRAND_TONE":              os.Getenv("BRAND_TONE"),
+		"COMMENT_KEYWORDS":        os.Getenv("COMMENT_KEYWORDS"),
+		"COMMENT_DAILY_LIMIT":     getenv("COMMENT_DAILY_LIMIT", "30"),
+		"LLM_DAILY_LIMIT":         getenv("LLM_DAILY_LIMIT", "200"),
+		"NOTIFY_WEBHOOK":          os.Getenv("NOTIFY_WEBHOOK"),
 	})
 }
 
@@ -813,6 +1130,8 @@ func handleConfigSave(w http.ResponseWriter, r *http.Request) {
 	}
 	var body map[string]string
 	json.NewDecoder(r.Body).Decode(&body)
+	// always allow TARGET_PLATFORMS even if it doesn't contain ****
+
 
 	// read current env file
 	lines := []string{}
