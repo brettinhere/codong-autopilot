@@ -1,0 +1,154 @@
+// modules/comment.cod — 关键词自动评论引流
+
+fn run_comment_engine() {
+    log("🔍 评论引流引擎启动")
+    keywords  = env.require("COMMENT_KEYWORDS").split(",")
+    platforms = env.require("TARGET_PLATFORMS").split(",")
+    daily_max = to_number(env.get("COMMENT_DAILY_LIMIT", "30"))
+
+    while true {
+        today       = time.format(time.now(), "2006-01-02")
+        today_count = db.query_one(
+            "SELECT COUNT(*) as n FROM comment_log WHERE status='success' AND posted_at LIKE ?",
+            ["{today}%"]
+        ).n || 0
+
+        if today_count >= daily_max {
+            log("⏸️  今日评论已达上限（{daily_max}条），等待1小时")
+            time.sleep("1h")
+            continue
+        }
+
+        platform = platforms[to_number(time.now()) % platforms.len()].trim()
+        keyword  = keywords[to_number(time.now()/13) % keywords.len()].trim()
+        log("🔍 [{platform}] 搜索：{keyword}")
+
+        posts = search_posts(platform, keyword)
+        if posts.len() == 0 { time.sleep("60s"); continue }
+
+        done_ids = db.query(
+            "SELECT target_post_id FROM comment_log WHERE platform=? AND status='success'",
+            [platform]
+        ).map(fn(r) => r.target_post_id)
+
+        new_posts = posts.filter(fn(p) => !done_ids.contains(p.post_id))
+        if new_posts.len() == 0 {
+            log("⚠️  本批帖子均已评论，等待30分钟")
+            time.sleep("30m")
+            continue
+        }
+
+        target  = new_posts[0]
+        comment = generate_comment(target)
+        if comment == null {
+            log("⚠️  评论生成失败或被安全过滤，跳过")
+            time.sleep("30s")
+            continue
+        }
+        log("✍️  评论：{comment}")
+
+        record_id = db.insert("comment_log", {
+            platform:       platform,
+            target_post_id: target.post_id,
+            keyword:        keyword,
+            comment_text:   comment,
+            status:         "pending",
+            created_at:     time.now_iso()
+        }).id
+
+        result = post_comment(platform, target.post_id, comment)
+        db.update("comment_log", { id: record_id }, {
+            status:    result.ok ? "success" : "failed",
+            posted_at: result.ok ? time.now_iso() : null,
+            error_msg: result.ok ? null : result.error
+        })
+
+        if result.ok {
+            log("✅ [{platform}] 评论成功（今日第 {today_count+1} 条）")
+            push_event("commented", { platform: platform, keyword: keyword, comment: comment })
+        } else {
+            log("❌ [{platform}] 评论失败：{result.error}")
+        }
+
+        waited = random_sleep(
+            to_number(env.get("COMMENT_INTERVAL_MIN", "180")),
+            to_number(env.get("COMMENT_INTERVAL_MAX", "600"))
+        )
+        log("⏳ 等待 {waited} 秒...")
+    }
+}
+
+fn search_posts(platform, keyword) {
+    raw = match platform {
+        "twitter" => search_twitter(keyword)
+        _ => []
+    }
+    max_age_hours = to_number(env.get("COMMENT_POST_MAX_AGE_HOURS", "24"))
+    cutoff        = time.format(time.add(time.now(), "-{max_age_hours}h"), "iso")
+    return raw.filter(fn(p) =>
+        p.likes > 10 &&
+        p.likes < 100000 &&
+        (p.created_at == null || p.created_at >= cutoff) &&
+        is_safe_post(p.content)
+    )
+}
+
+fn search_twitter(keyword) {
+    resp = http.get("https://api.twitter.com/2/tweets/search/recent", {
+        headers: { "Authorization": "Bearer {env.require('TWITTER_BEARER_TOKEN')}" },
+        params: {
+            query:          "{keyword} -is:retweet lang:en",
+            max_results:    20,
+            "tweet.fields": "public_metrics,created_at,author_id"
+        }
+    })
+    if !resp.ok { return [] }
+    my_uid = env.get("TWITTER_USER_ID", "")
+    return (resp.json().data || [])
+        .filter(fn(t) => t.author_id != my_uid)
+        .map(fn(t) => {
+            post_id:    t.id,
+            content:    t.text,
+            likes:      t.public_metrics.like_count,
+            created_at: t.created_at
+        })
+}
+
+fn generate_comment(post) {
+    styles = {
+        "有价值的补充": "补充一个帖子没提到但有用的信息，不超过50字",
+        "提问互动":    "提一个具体真诚的问题，不超过30字",
+        "经验分享":    "分享一个相关个人经验，不超过60字"
+    }
+    style  = styles[env.get("COMMENT_STYLE", "有价值的补充")]
+    result = llm_ask("
+Post content: {post.content.slice(0, 300)}
+
+Task: Write a reply comment. {style}
+
+Rules:
+- Sound like a real person, natural tone
+- Never include: ads, promotions, links, @mentions, emoji spam
+- Return only the comment text, nothing else
+    ")
+    if result == null { return null }
+    comment = result.text
+    if !is_safe_comment(comment) { return null }
+    return comment
+}
+
+fn post_comment(platform, post_id, comment_text) {
+    return match platform {
+        "twitter" => {
+            resp = http.post("https://api.twitter.com/2/tweets", {
+                headers: {
+                    "Authorization": build_twitter_oauth("POST", "https://api.twitter.com/2/tweets"),
+                    "Content-Type":  "application/json"
+                },
+                body: { text: comment_text, reply: { in_reply_to_tweet_id: post_id } }
+            })
+            resp.ok ? { ok: true } : { ok: false, error: resp.text() }
+        }
+        _ => { ok: false, error: "unsupported" }
+    }
+}

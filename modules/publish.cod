@@ -1,0 +1,66 @@
+// modules/publish.cod — 自动发帖
+
+fn publish(platform, content) {
+    return match platform {
+        "twitter" => publish_twitter(content)
+        _ => { ok: false, error: "unsupported platform: {platform}" }
+    }
+}
+
+fn publish_twitter(content) {
+    resp = http.post("https://api.twitter.com/2/tweets", {
+        headers: {
+            "Authorization": build_twitter_oauth("POST", "https://api.twitter.com/2/tweets"),
+            "Content-Type":  "application/json"
+        },
+        body: { text: content }
+    })
+    if !resp.ok {
+        return { ok: false, error: resp.text() }
+    }
+    tweet_id = resp.json().data.id
+    return { ok: true, post_id: tweet_id, url: "https://twitter.com/i/web/status/{tweet_id}" }
+}
+
+fn run_publish_engine() {
+    log("⏰ 发布引擎启动")
+    while true {
+        due = db.find("post_queue", {
+            status:     "ready",
+            publish_at: { "$lte": time.now_iso() }
+        })
+        for post in due {
+            log("🚀 发布 [{post.platform}]")
+            result = publish(post.platform, post.content)
+            if result.ok {
+                db.update("post_queue", { id: post.id }, {
+                    status:       "published",
+                    post_id:      result.post_id,
+                    published_at: time.now_iso()
+                })
+                log("✅ [{post.platform}] 发布成功 → {result.url}")
+                push_event("published", { platform: post.platform, url: result.url })
+            } else {
+                retry = post.retry_count + 1
+                if retry >= 3 {
+                    db.update("post_queue", { id: post.id }, {
+                        status:      "failed",
+                        error_msg:   result.error,
+                        retry_count: retry
+                    })
+                    notify_failure("publish", "[{post.platform}] {result.error}")
+                } else {
+                    delays = ["1m", "5m", "15m"]
+                    next   = time.format(time.add(time.now(), delays[retry-1]), "iso")
+                    db.update("post_queue", { id: post.id }, {
+                        publish_at:  next,
+                        retry_count: retry,
+                        error_msg:   result.error
+                    })
+                    log("⚠️  失败，{delays[retry-1]}后重试（第{retry}次）")
+                }
+            }
+        }
+        time.sleep("30s")
+    }
+}

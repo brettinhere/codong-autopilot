@@ -1,0 +1,63 @@
+// modules/utils.cod — 公共工具函数
+
+fn random_sleep(min_sec, max_sec) {
+    wait = min_sec + (to_number(time.now()) % (max_sec - min_sec))
+    time.sleep("{wait}s")
+    return wait
+}
+
+fn llm_ask(prompt) {
+    daily_max = to_number(env.get("LLM_DAILY_LIMIT", "200"))
+    today     = time.format(time.now(), "2006-01-02")
+    count     = redis.get("llm:count:{today}")
+    if count != null && to_number(count) >= daily_max {
+        log("⚠️  LLM 今日调用已达上限（{daily_max}次），跳过")
+        return null
+    }
+    result = llm.ask(
+        model:  "claude-sonnet-4-6",
+        prompt: prompt
+    )
+    redis.incr("llm:count:{today}")
+    redis.expire("llm:count:{today}", "25h")
+    return result
+}
+
+fn notify_failure(module, message) {
+    webhook = env.get("NOTIFY_WEBHOOK", "")
+    if webhook == "" { return }
+    http.post(webhook, {
+        body: {
+            msg_type: "text",
+            content:  { text: "❌ Autopilot 告警\n模块：{module}\n错误：{message}" }
+        }
+    })
+}
+
+fn random_ua() {
+    pool = [
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/116.0.0.0 Mobile Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/20G75",
+        "Mozilla/5.0 (Linux; Android 12; Samsung Galaxy S22) AppleWebKit/537.36 Chrome/112.0.0.0 Mobile Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile Safari/604.1"
+    ]
+    return pool[to_number(time.now()) % pool.len()]
+}
+
+fn is_safe_post(content) {
+    danger_words = ["投诉","骗局","维权","踩雷","差评","避坑","黑幕","诈骗","虚假","举报","警告","坑人","后悔","翻车","赔偿","退款","律师","起诉"]
+    for word in danger_words {
+        if content.contains(word) { return false }
+    }
+    return true
+}
+
+fn is_safe_comment(text) {
+    if text == null || text.len() == 0 { return false }
+    banned = ["广告","推广","加微信","私信","关注我","http://","https://","www.","二维码"]
+    for word in banned {
+        if text.contains(word) { return false }
+    }
+    return true
+}

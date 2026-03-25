@@ -1,0 +1,93 @@
+// modules/reply.cod — 自动回复评论
+
+fn run_reply_engine() {
+    log("💬 自动回复引擎启动")
+    while true {
+        my_posts = db.find("post_queue", {
+            status:       "published",
+            published_at: { "$gte": time.format(time.add(time.now(), "-7d"), "iso") }
+        })
+        for post in my_posts {
+            new_comments = fetch_comments(post.platform, post.post_id)
+            for c in new_comments {
+                my_id = env.get("{post.platform.upper()}_USER_ID", "")
+                if my_id != "" && c.author_id == my_id { continue }
+                if db.exists("reply_log", { platform: post.platform, comment_id: c.id }) { continue }
+                reply = ai_reply(c.text)
+                if reply == null { continue }
+                result = post_reply(post.platform, post.post_id, c.id, reply)
+                db.insert("reply_log", {
+                    platform:     post.platform,
+                    post_id:      post.post_id,
+                    comment_id:   c.id,
+                    comment_text: c.text,
+                    reply_text:   reply,
+                    status:       result.ok ? "success" : "failed",
+                    replied_at:   time.now_iso(),
+                    created_at:   time.now_iso()
+                })
+                if result.ok {
+                    log("↩️  [{post.platform}] 回复：{c.text.slice(0,30)}...")
+                    push_event("replied", { platform: post.platform, reply: reply })
+                }
+                random_sleep(8, 20)
+            }
+        }
+        waited = random_sleep(120, 300)
+        log("⏳ 下次轮询等待 {waited} 秒")
+    }
+}
+
+fn ai_reply(comment_text) {
+    result = llm_ask("
+品牌语气：{env.require('BRAND_TONE')}
+用户评论：{comment_text}
+
+用品牌语气回复，要求：
+- 自然友好，像真人回复
+- 不超过 50 字
+- 不要提任何外部链接或产品名
+- 只返回回复内容
+    ")
+    return result?.text
+}
+
+fn fetch_comments(platform, post_id) {
+    return match platform {
+        "twitter" => fetch_twitter_replies(post_id)
+        _ => []
+    }
+}
+
+fn fetch_twitter_replies(tweet_id) {
+    resp = http.get("https://api.twitter.com/2/tweets/search/recent", {
+        headers: { "Authorization": "Bearer {env.require('TWITTER_BEARER_TOKEN')}" },
+        params: {
+            query:          "conversation_id:{tweet_id} is:reply",
+            max_results:    20,
+            "tweet.fields": "author_id"
+        }
+    })
+    if !resp.ok { return [] }
+    return (resp.json().data || []).map(fn(t) => {
+        id:        t.id,
+        text:      t.text,
+        author_id: t.author_id
+    })
+}
+
+fn post_reply(platform, post_id, comment_id, reply_text) {
+    return match platform {
+        "twitter" => {
+            resp = http.post("https://api.twitter.com/2/tweets", {
+                headers: {
+                    "Authorization": build_twitter_oauth("POST", "https://api.twitter.com/2/tweets"),
+                    "Content-Type":  "application/json"
+                },
+                body: { text: reply_text, reply: { in_reply_to_tweet_id: comment_id } }
+            })
+            resp.ok ? { ok: true } : { ok: false, error: resp.text() }
+        }
+        _ => { ok: false, error: "unsupported" }
+    }
+}

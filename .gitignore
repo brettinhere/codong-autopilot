@@ -1,0 +1,8 @@
+autopilot.env
+autopilot.db
+autopilot.db-shm
+autopilot.db-wal
+logs/
+*.log
+autopilot
+go.sum

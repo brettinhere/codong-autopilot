@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Codong Autopilot</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#0d1117; color:#c9d1d9; font-family:'JetBrains Mono',monospace; font-size:13px; }
+a { color:#58a6ff; text-decoration:none; }
+
+/* layout */
+.sidebar { position:fixed; left:0; top:0; bottom:0; width:200px; background:#010409; border-right:1px solid #21262d; display:flex; flex-direction:column; }
+.main { margin-left:200px; padding:24px; min-height:100vh; }
+
+/* sidebar */
+.logo { padding:20px 16px 12px; font-size:14px; font-weight:700; color:#fff; border-bottom:1px solid #21262d; }
+.logo span { color:#3fb950; }
+.nav-item { padding:10px 16px; cursor:pointer; color:#8b949e; font-size:12px; transition:all .15s; display:flex; align-items:center; gap:8px; }
+.nav-item:hover { color:#c9d1d9; background:#0d1117; }
+.nav-item.active { color:#fff; background:#161b22; border-left:2px solid #3fb950; }
+.live-dot { width:6px; height:6px; border-radius:50%; background:#3fb950; animation:blink 1.5s infinite; flex-shrink:0; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.sidebar-bottom { margin-top:auto; padding:12px 16px; font-size:11px; color:#3d444d; border-top:1px solid #21262d; }
+
+/* pages */
+.page { display:none; }
+.page.active { display:block; }
+
+/* header */
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.page-title { font-size:16px; font-weight:600; color:#fff; }
+.badge { font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid #30363d; color:#8b949e; }
+
+/* cards */
+.cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.card { background:#161b22; border:1px solid #21262d; border-radius:6px; padding:16px; }
+.card-label { font-size:10px; color:#6e7681; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+.big-num { font-size:28px; font-weight:300; color:#3fb950; line-height:1; }
+.big-num.warn { color:#ffa657; }
+.big-num.err  { color:#ff7b72; }
+.big-num.blue { color:#58a6ff; }
+.card-sub { font-size:11px; color:#6e7681; margin-top:4px; }
+
+/* bar */
+.bar-bg { background:#21262d; height:4px; border-radius:2px; margin-top:8px; }
+.bar-fill { height:4px; border-radius:2px; transition:width .4s; }
+
+/* table */
+.tbl { width:100%; border-collapse:collapse; font-size:12px; }
+.tbl th { text-align:left; padding:8px 12px; color:#6e7681; font-size:10px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #21262d; background:#0d1117; }
+.tbl td { padding:9px 12px; border-bottom:1px solid #161b22; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr:hover td { background:#161b22; }
+.pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:10px; }
+.pill-ok   { background:rgba(63,185,80,.12); color:#3fb950; border:1px solid rgba(63,185,80,.3); }
+.pill-pend { background:rgba(255,166,87,.1);  color:#ffa657; border:1px solid rgba(255,166,87,.3); }
+.pill-fail { background:rgba(255,123,114,.1); color:#ff7b72; border:1px solid rgba(255,123,114,.3); }
+.pill-rdy  { background:rgba(88,166,255,.1);  color:#58a6ff; border:1px solid rgba(88,166,255,.3); }
+
+/* section */
+.section { background:#161b22; border:1px solid #21262d; border-radius:6px; margin-bottom:16px; }
+.section-header { padding:12px 16px; border-bottom:1px solid #21262d; font-size:12px; font-weight:600; color:#e6edf3; display:flex; align-items:center; justify-content:space-between; }
+.section-body { padding:16px; }
+
+/* log */
+.log-wrap { height:300px; overflow-y:auto; }
+.log-line { padding:4px 0; border-bottom:1px solid #0d1117; font-size:11px; color:#8b949e; }
+.log-line:last-child { border:none; }
+.log-ts { color:#3d444d; margin-right:10px; }
+
+/* form */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group.full { grid-column:1/-1; }
+.form-label { font-size:10px; color:#8b949e; text-transform:uppercase; letter-spacing:.08em; }
+.form-input { background:#0d1117; border:1px solid #30363d; border-radius:4px; padding:7px 10px; color:#c9d1d9; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none; transition:border-color .15s; }
+.form-input:focus { border-color:#58a6ff; }
+.form-input::placeholder { color:#3d444d; }
+textarea.form-input { resize:vertical; min-height:80px; }
+.btn { padding:7px 16px; border-radius:4px; border:none; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:'JetBrains Mono',monospace; }
+.btn-primary { background:#238636; color:#fff; }
+.btn-primary:hover { background:#2ea043; }
+.btn-outline { background:transparent; color:#58a6ff; border:1px solid #30363d; }
+.btn-outline:hover { border-color:#58a6ff; background:rgba(88,166,255,.06); }
+.btn-sm { padding:4px 10px; font-size:11px; }
+.save-msg { font-size:11px; color:#3fb950; display:none; margin-left:10px; }
+
+/* add post form */
+.add-post { display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:end; }
+.add-post .form-group { margin:0; }
+.content-input { grid-column:1/3; }
+
+/* responsive */
+@media(max-width:900px) { .cards { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">cod<span>.</span>ong<br><small style="font-size:10px;color:#6e7681;font-weight:400">autopilot v1.1</small></div>
+  <div class="nav-item active" onclick="showPage('dashboard')"><span class="live-dot"></span> Dashboard</div>
+  <div class="nav-item" onclick="showPage('queue')">📋 Publish Queue</div>
+  <div class="nav-item" onclick="showPage('comments')">💬 Comments</div>
+  <div class="nav-item" onclick="showPage('config')">⚙️ Config</div>
+  <div class="sidebar-bottom" id="clock"></div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <span class="page-title">Live Overview</span>
+      <span class="badge" id="status-badge">● connecting...</span>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Published</div>
+        <div class="big-num" id="c-published">—</div>
+        <div class="card-sub">posts total</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Pending</div>
+        <div class="big-num warn" id="c-pending">—</div>
+        <div class="card-sub">in queue</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Comments Today</div>
+        <div class="big-num" id="c-comments">—</div>
+        <div class="card-sub" id="c-comments-total">— total</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Replies Today</div>
+        <div class="big-num" id="c-replies">—</div>
+        <div class="card-sub" id="c-replies-total">— total</div>
+      </div>
+    </div>
+
+    <div class="cards" style="grid-template-columns:1fr 1fr;">
+      <div class="card">
+        <div class="card-label">LLM Usage Today</div>
+        <div class="big-num blue" id="c-llm">—</div>
+        <div class="card-sub" id="c-llm-max">/ — limit</div>
+        <div class="bar-bg"><div class="bar-fill" id="llm-bar" style="width:0%;background:#58a6ff"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Failed Posts</div>
+        <div class="big-num err" id="c-failed">—</div>
+        <div class="card-sub">need attention</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">Live Log <span style="color:#3d444d;font-size:10px">latest 60 lines</span></div>
+      <div class="section-body">
+        <div class="log-wrap" id="log-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div class="page" id="page-queue">
+    <div class="page-header">
+      <span class="page-title">Publish Queue</span>
+      <button class="btn btn-outline btn-sm" onclick="loadQueue()">↻ Refresh</button>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">Add Post</div>
+      <div class="section-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Platform</label>
+            <select class="form-input" id="q-platform">
+              <option value="twitter">Twitter / X</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Publish At (UTC)</label>
+            <input class="form-input" type="datetime-local" id="q-time">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Content</label>
+            <textarea class="form-input" id="q-content" placeholder="Write your post content here..."></textarea>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button class="btn btn-primary" onclick="addPost()">Add to Queue</button>
+          <span class="save-msg" id="post-msg">✓ Added!</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">Queue</div>
+      <div class="section-body" style="padding:0">
+        <table class="tbl">
+          <thead><tr>
+            <th>Platform</th><th>Content</th><th>Publish At</th>
+            <th>Status</th><th>Retries</th>
+          </tr></thead>
+          <tbody id="queue-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMENTS -->
+  <div class="page" id="page-comments">
+    <div class="page-header">
+      <span class="page-title">Comment Activity</span>
+      <button class="btn btn-outline btn-sm" onclick="loadComments()">↻ Refresh</button>
+    </div>
+    <div class="section">
+      <div class="section-header">Recent Comments</div>
+      <div class="section-body" style="padding:0">
+        <table class="tbl">
+          <thead><tr>
+            <th>Platform</th><th>Keyword</th><th>Comment</th><th>Status</th><th>Time</th>
+          </tr></thead>
+          <tbody id="comments-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="page" id="page-config">
+    <div class="page-header">
+      <span class="page-title">Configuration</span>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">🐦 Twitter / X Credentials</div>
+      <div class="section-body">
+        <p style="font-size:11px;color:#6e7681;margin-bottom:14px">Get your credentials at <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank">developer.twitter.com</a>. Values are saved to autopilot.env on the server.</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">API Key (Consumer Key)</label>
+            <input class="form-input" id="cfg-api-key" type="password" placeholder="Leave blank to keep current">
+          </div>
+          <div class="form-group">
+            <label class="form-label">API Secret (Consumer Secret)</label>
+            <input class="form-input" id="cfg-api-secret" type="password" placeholder="Leave blank to keep current">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Access Token</label>
+            <input class="form-input" id="cfg-access-token" type="password" placeholder="Leave blank to keep current">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Access Token Secret</label>
+            <input class="form-input" id="cfg-access-secret" type="password" placeholder="Leave blank to keep current">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bearer Token</label>
+            <input class="form-input" id="cfg-bearer" type="password" placeholder="Leave blank to keep current">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Your Twitter User ID</label>
+            <input class="form-input" id="cfg-user-id" placeholder="e.g. 1234567890">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">🤖 Brand & Comment Settings</div>
+      <div class="section-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Brand Name</label>
+            <input class="form-input" id="cfg-brand" placeholder="Your brand name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Brand Tone</label>
+            <input class="form-input" id="cfg-tone" placeholder="e.g. 专业、友好、有价值感">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Comment Keywords (comma separated)</label>
+            <input class="form-input" id="cfg-keywords" placeholder="e.g. AI tools, productivity, coding">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Comment Daily Limit</label>
+            <input class="form-input" id="cfg-daily-limit" type="number" placeholder="30">
+          </div>
+          <div class="form-group">
+            <label class="form-label">LLM Daily Call Limit</label>
+            <input class="form-input" id="cfg-llm-limit" type="number" placeholder="200">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Failure Webhook URL (optional — 飞书/钉钉/企业微信)</label>
+            <input class="form-input" id="cfg-webhook" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+      <span class="save-msg" id="cfg-save-msg">✓ Saved!</span>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── SSE ──────────────────────────────────────────────────────────────────────
+const es = new EventSource('/ws')
+es.onopen = () => setBadge(true)
+es.onerror = () => setBadge(false)
+es.onmessage = e => {
+  const msg = JSON.parse(e.data)
+  if (msg.event === 'snapshot') renderSnapshot(msg.data)
+  else addLog(msg)
+}
+
+function setBadge(ok) {
+  const b = document.getElementById('status-badge')
+  b.textContent = ok ? '● live' : '● offline'
+  b.style.color = ok ? '#3fb950' : '#ff7b72'
+}
+
+// ── snapshot ─────────────────────────────────────────────────────────────────
+function renderSnapshot(d) {
+  const q = d.queue || {}, c = d.comments || {}, r = d.replies || {}, l = d.llm || {}
+  set('c-published', q.published ?? '—')
+  set('c-pending',   q.ready     ?? '—')
+  set('c-failed',    q.failed    ?? '—')
+  set('c-comments',  c.today     ?? '—')
+  set('c-comments-total', (c.total ?? '—') + ' total')
+  set('c-replies',   r.today     ?? '—')
+  set('c-replies-total', (r.total ?? '—') + ' total')
+  set('c-llm',       l.today     ?? '—')
+  set('c-llm-max',   '/ ' + (l.daily_max ?? '—') + ' limit')
+  const pct = l.daily_max ? Math.round((l.today||0)/l.daily_max*100) : 0
+  const bar = document.getElementById('llm-bar')
+  bar.style.width = pct + '%'
+  bar.style.background = pct > 80 ? '#ff7b72' : pct > 60 ? '#ffa657' : '#58a6ff'
+}
+
+function set(id, val) {
+  const el = document.getElementById(id)
+  if (el) el.textContent = val
+}
+
+// ── log ──────────────────────────────────────────────────────────────────────
+function addLog(msg) {
+  const icons = { published:'✅', commented:'💬', replied:'↩️', log:'·' }
+  const text = msg.event === 'log' ? msg.data?.message
+    : msg.event === 'published'  ? `✅ [${msg.data?.platform}] published → ${msg.data?.url||''}`
+    : msg.event === 'commented'  ? `💬 [${msg.data?.platform||'twitter'}] commented: ${(msg.data?.comment||'').slice(0,60)}`
+    : msg.event === 'replied'    ? `↩️  replied: ${(msg.data?.reply||'').slice(0,60)}`
+    : null
+  if (!text) return
+  const wrap = document.getElementById('log-container')
+  const line = document.createElement('div')
+  line.className = 'log-line'
+  line.innerHTML = `<span class="log-ts">${msg.time||''}</span>${text}`
+  wrap.insertBefore(line, wrap.firstChild)
+  if (wrap.children.length > 60) wrap.removeChild(wrap.lastChild)
+}
+
+// load recent logs on open
+fetch('/api/logs').then(r=>r.json()).then(logs => {
+  logs.forEach(l => {
+    const wrap = document.getElementById('log-container')
+    const line = document.createElement('div')
+    line.className = 'log-line'
+    const ts = l.slice(0,8)
+    const msg = l.slice(10)
+    line.innerHTML = `<span class="log-ts">${ts}</span>${msg}`
+    wrap.appendChild(line)
+  })
+})
+
+// ── queue ────────────────────────────────────────────────────────────────────
+function loadQueue() {
+  fetch('/api/queue').then(r=>r.json()).then(rows => {
+    const tb = document.getElementById('queue-body')
+    if (!rows || !rows.length) { tb.innerHTML='<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Empty queue</td></tr>'; return }
+    tb.innerHTML = rows.map(r => `<tr>
+      <td>${r.platform}</td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.content)}</td>
+      <td>${r.publish_at}</td>
+      <td>${pillStatus(r.status)}</td>
+      <td>${r.retry_count}</td>
+    </tr>`).join('')
+  })
+}
+
+function addPost() {
+  const platform = document.getElementById('q-platform').value
+  const content  = document.getElementById('q-content').value.trim()
+  const time     = document.getElementById('q-time').value.replace('T',' ') + ':00'
+  if (!content || !time) { alert('Fill in content and time'); return }
+  fetch('/api/queue/add', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ platform, content, publish_at: time })
+  }).then(r=>r.json()).then(() => {
+    document.getElementById('q-content').value = ''
+    const m = document.getElementById('post-msg')
+    m.style.display = 'inline'
+    setTimeout(() => m.style.display='none', 2500)
+    loadQueue()
+  })
+}
+
+// ── comments ─────────────────────────────────────────────────────────────────
+function loadComments() {
+  fetch('/api/snapshot').then(r=>r.json()).then(() => {})
+  // pull comment log from queue endpoint substitute — for now just show snapshot
+  // Full comment log endpoint can be added; showing placeholder
+  const tb = document.getElementById('comments-body')
+  tb.innerHTML = '<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Use the dashboard cards for stats. Full log coming soon.</td></tr>'
+}
+
+// ── config ───────────────────────────────────────────────────────────────────
+function loadConfig() {
+  fetch('/api/config').then(r=>r.json()).then(d => {
+    document.getElementById('cfg-user-id').value    = d.TWITTER_USER_ID  || ''
+    document.getElementById('cfg-brand').value      = d.BRAND_NAME        || ''
+    document.getElementById('cfg-tone').value       = d.BRAND_TONE        || ''
+    document.getElementById('cfg-keywords').value   = d.COMMENT_KEYWORDS  || ''
+    document.getElementById('cfg-daily-limit').value= d.COMMENT_DAILY_LIMIT||'30'
+    document.getElementById('cfg-llm-limit').value  = d.LLM_DAILY_LIMIT   ||'200'
+    document.getElementById('cfg-webhook').value    = d.NOTIFY_WEBHOOK    || ''
+    // masked values shown as placeholder
+    ;['cfg-api-key','cfg-api-secret','cfg-access-token','cfg-access-secret','cfg-bearer'].forEach(id => {
+      document.getElementById(id).placeholder = 'Leave blank to keep current'
+    })
+  })
+}
+
+function saveConfig() {
+  const body = {
+    TWITTER_API_KEY:       document.getElementById('cfg-api-key').value,
+    TWITTER_API_SECRET:    document.getElementById('cfg-api-secret').value,
+    TWITTER_ACCESS_TOKEN:  document.getElementById('cfg-access-token').value,
+    TWITTER_ACCESS_SECRET: document.getElementById('cfg-access-secret').value,
+    TWITTER_BEARER_TOKEN:  document.getElementById('cfg-bearer').value,
+    TWITTER_USER_ID:       document.getElementById('cfg-user-id').value,
+    BRAND_NAME:            document.getElementById('cfg-brand').value,
+    BRAND_TONE:            document.getElementById('cfg-tone').value,
+    COMMENT_KEYWORDS:      document.getElementById('cfg-keywords').value,
+    COMMENT_DAILY_LIMIT:   document.getElementById('cfg-daily-limit').value,
+    LLM_DAILY_LIMIT:       document.getElementById('cfg-llm-limit').value,
+    NOTIFY_WEBHOOK:        document.getElementById('cfg-webhook').value,
+  }
+  fetch('/api/config/save', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  }).then(r=>r.json()).then(() => {
+    const m = document.getElementById('cfg-save-msg')
+    m.style.display = 'inline'
+    setTimeout(() => m.style.display='none', 2500)
+  })
+}
+
+// ── nav ──────────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
+  document.getElementById('page-'+name).classList.add('active')
+  event.currentTarget.classList.add('active')
+  if (name === 'queue')    loadQueue()
+  if (name === 'comments') loadComments()
+  if (name === 'config')   loadConfig()
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;') }
+function pillStatus(s) {
+  const map = { published:'pill-ok', ready:'pill-rdy', failed:'pill-fail', pending:'pill-pend' }
+  return `<span class="pill ${map[s]||'pill-pend'}">${s}</span>`
+}
+setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString() }, 1000)
+</script>
+</body>
+</html>
