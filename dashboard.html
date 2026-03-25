@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -9,13 +9,12 @@
 body { background:#0d1117; color:#c9d1d9; font-family:'JetBrains Mono',monospace; font-size:13px; }
 a { color:#58a6ff; text-decoration:none; }
 
-/* layout */
 .sidebar { position:fixed; left:0; top:0; bottom:0; width:200px; background:#010409; border-right:1px solid #21262d; display:flex; flex-direction:column; }
 .main { margin-left:200px; padding:24px; min-height:100vh; }
 
-/* sidebar */
 .logo { padding:20px 16px 12px; font-size:14px; font-weight:700; color:#fff; border-bottom:1px solid #21262d; }
 .logo span { color:#3fb950; }
+.logo small { font-size:10px; color:#6e7681; font-weight:400; display:block; margin-top:2px; }
 .nav-item { padding:10px 16px; cursor:pointer; color:#8b949e; font-size:12px; transition:all .15s; display:flex; align-items:center; gap:8px; }
 .nav-item:hover { color:#c9d1d9; background:#0d1117; }
 .nav-item.active { color:#fff; background:#161b22; border-left:2px solid #3fb950; }
@@ -23,16 +22,20 @@ a { color:#58a6ff; text-decoration:none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 .sidebar-bottom { margin-top:auto; padding:12px 16px; font-size:11px; color:#3d444d; border-top:1px solid #21262d; }
 
-/* pages */
 .page { display:none; }
 .page.active { display:block; }
 
-/* header */
 .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .page-title { font-size:16px; font-weight:600; color:#fff; }
+.header-right { display:flex; align-items:center; gap:10px; }
 .badge { font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid #30363d; color:#8b949e; }
 
-/* cards */
+/* 语言切换 */
+.lang-switch { display:flex; border:1px solid #30363d; border-radius:4px; overflow:hidden; }
+.lang-btn { padding:3px 10px; font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:600; border:none; background:transparent; color:#6e7681; cursor:pointer; transition:all .15s; letter-spacing:.04em; }
+.lang-btn.active { background:#238636; color:#fff; }
+.lang-btn:not(.active):hover { background:#161b22; color:#c9d1d9; }
+
 .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
 .card { background:#161b22; border:1px solid #21262d; border-radius:6px; padding:16px; }
 .card-label { font-size:10px; color:#6e7681; text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
@@ -42,42 +45,38 @@ a { color:#58a6ff; text-decoration:none; }
 .big-num.blue { color:#58a6ff; }
 .card-sub { font-size:11px; color:#6e7681; margin-top:4px; }
 
-/* bar */
 .bar-bg { background:#21262d; height:4px; border-radius:2px; margin-top:8px; }
 .bar-fill { height:4px; border-radius:2px; transition:width .4s; }
 
-/* table */
 .tbl { width:100%; border-collapse:collapse; font-size:12px; }
 .tbl th { text-align:left; padding:8px 12px; color:#6e7681; font-size:10px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #21262d; background:#0d1117; }
 .tbl td { padding:9px 12px; border-bottom:1px solid #161b22; }
 .tbl tr:last-child td { border-bottom:none; }
 .tbl tr:hover td { background:#161b22; }
 .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-size:10px; }
-.pill-ok   { background:rgba(63,185,80,.12); color:#3fb950; border:1px solid rgba(63,185,80,.3); }
+.pill-ok   { background:rgba(63,185,80,.12);  color:#3fb950; border:1px solid rgba(63,185,80,.3); }
 .pill-pend { background:rgba(255,166,87,.1);  color:#ffa657; border:1px solid rgba(255,166,87,.3); }
 .pill-fail { background:rgba(255,123,114,.1); color:#ff7b72; border:1px solid rgba(255,123,114,.3); }
 .pill-rdy  { background:rgba(88,166,255,.1);  color:#58a6ff; border:1px solid rgba(88,166,255,.3); }
 
-/* section */
 .section { background:#161b22; border:1px solid #21262d; border-radius:6px; margin-bottom:16px; }
 .section-header { padding:12px 16px; border-bottom:1px solid #21262d; font-size:12px; font-weight:600; color:#e6edf3; display:flex; align-items:center; justify-content:space-between; }
 .section-body { padding:16px; }
 
-/* log */
 .log-wrap { height:300px; overflow-y:auto; }
 .log-line { padding:4px 0; border-bottom:1px solid #0d1117; font-size:11px; color:#8b949e; }
 .log-line:last-child { border:none; }
 .log-ts { color:#3d444d; margin-right:10px; }
 
-/* form */
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .form-group { display:flex; flex-direction:column; gap:5px; }
 .form-group.full { grid-column:1/-1; }
 .form-label { font-size:10px; color:#8b949e; text-transform:uppercase; letter-spacing:.08em; }
-.form-input { background:#0d1117; border:1px solid #30363d; border-radius:4px; padding:7px 10px; color:#c9d1d9; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none; transition:border-color .15s; }
+.form-input { background:#0d1117; border:1px solid #30363d; border-radius:4px; padding:7px 10px; color:#c9d1d9; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none; transition:border-color .15s; width:100%; }
 .form-input:focus { border-color:#58a6ff; }
 .form-input::placeholder { color:#3d444d; }
 textarea.form-input { resize:vertical; min-height:80px; }
+select.form-input { cursor:pointer; }
 .btn { padding:7px 16px; border-radius:4px; border:none; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:'JetBrains Mono',monospace; }
 .btn-primary { background:#238636; color:#fff; }
 .btn-primary:hover { background:#2ea043; }
@@ -85,180 +84,188 @@ textarea.form-input { resize:vertical; min-height:80px; }
 .btn-outline:hover { border-color:#58a6ff; background:rgba(88,166,255,.06); }
 .btn-sm { padding:4px 10px; font-size:11px; }
 .save-msg { font-size:11px; color:#3fb950; display:none; margin-left:10px; }
+.hint { font-size:11px; color:#6e7681; margin-bottom:14px; line-height:1.6; }
 
-/* add post form */
-.add-post { display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:end; }
-.add-post .form-group { margin:0; }
-.content-input { grid-column:1/3; }
-
-/* responsive */
 @media(max-width:900px) { .cards { grid-template-columns:1fr 1fr; } }
 </style>
 </head>
 <body>
 
 <div class="sidebar">
-  <div class="logo">cod<span>.</span>ong<br><small style="font-size:10px;color:#6e7681;font-weight:400">autopilot v1.1</small></div>
-  <div class="nav-item active" onclick="showPage('dashboard')"><span class="live-dot"></span> Dashboard</div>
-  <div class="nav-item" onclick="showPage('queue')">📋 Publish Queue</div>
-  <div class="nav-item" onclick="showPage('comments')">💬 Comments</div>
-  <div class="nav-item" onclick="showPage('config')">⚙️ Config</div>
+  <div class="logo">cod<span>.</span>ong<small>autopilot v1.1</small></div>
+  <div class="nav-item active" onclick="showPage('dashboard',this)"><span class="live-dot"></span> <span data-i18n="nav_dashboard">实时概览</span></div>
+  <div class="nav-item" onclick="showPage('queue',this)">📋 <span data-i18n="nav_queue">发帖队列</span></div>
+  <div class="nav-item" onclick="showPage('comments',this)">💬 <span data-i18n="nav_comments">评论记录</span></div>
+  <div class="nav-item" onclick="showPage('config',this)">⚙️ <span data-i18n="nav_config">配置</span></div>
   <div class="sidebar-bottom" id="clock"></div>
 </div>
 
 <div class="main">
 
-  <!-- DASHBOARD -->
+  <!-- ══ DASHBOARD ══ -->
   <div class="page active" id="page-dashboard">
     <div class="page-header">
-      <span class="page-title">Live Overview</span>
-      <span class="badge" id="status-badge">● connecting...</span>
+      <span class="page-title" data-i18n="nav_dashboard">实时概览</span>
+      <div class="header-right">
+        <span class="badge" id="status-badge">● 连接中...</span>
+        <div class="lang-switch">
+          <button class="lang-btn active" onclick="setLang('zh')">中文</button>
+          <button class="lang-btn" onclick="setLang('en')">EN</button>
+        </div>
+      </div>
     </div>
 
     <div class="cards">
       <div class="card">
-        <div class="card-label">Published</div>
+        <div class="card-label" data-i18n="card_published">已发布</div>
         <div class="big-num" id="c-published">—</div>
-        <div class="card-sub">posts total</div>
+        <div class="card-sub" data-i18n="card_published_sub">条帖子</div>
       </div>
       <div class="card">
-        <div class="card-label">Pending</div>
+        <div class="card-label" data-i18n="card_pending">待发布</div>
         <div class="big-num warn" id="c-pending">—</div>
-        <div class="card-sub">in queue</div>
+        <div class="card-sub" data-i18n="card_pending_sub">队列中</div>
       </div>
       <div class="card">
-        <div class="card-label">Comments Today</div>
+        <div class="card-label" data-i18n="card_comments_today">今日评论</div>
         <div class="big-num" id="c-comments">—</div>
-        <div class="card-sub" id="c-comments-total">— total</div>
+        <div class="card-sub" id="c-comments-total">— <span data-i18n="total">条</span></div>
       </div>
       <div class="card">
-        <div class="card-label">Replies Today</div>
+        <div class="card-label" data-i18n="card_replies_today">今日回复</div>
         <div class="big-num" id="c-replies">—</div>
-        <div class="card-sub" id="c-replies-total">— total</div>
+        <div class="card-sub" id="c-replies-total">— <span data-i18n="total">条</span></div>
       </div>
     </div>
 
     <div class="cards" style="grid-template-columns:1fr 1fr;">
       <div class="card">
-        <div class="card-label">LLM Usage Today</div>
+        <div class="card-label" data-i18n="card_llm">今日 LLM 用量</div>
         <div class="big-num blue" id="c-llm">—</div>
-        <div class="card-sub" id="c-llm-max">/ — limit</div>
+        <div class="card-sub" id="c-llm-max">/ — <span data-i18n="limit">次上限</span></div>
         <div class="bar-bg"><div class="bar-fill" id="llm-bar" style="width:0%;background:#58a6ff"></div></div>
       </div>
       <div class="card">
-        <div class="card-label">Failed Posts</div>
+        <div class="card-label" data-i18n="card_failed">发布失败</div>
         <div class="big-num err" id="c-failed">—</div>
-        <div class="card-sub">need attention</div>
+        <div class="card-sub" data-i18n="card_failed_sub">需要处理</div>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-header">Live Log <span style="color:#3d444d;font-size:10px">latest 60 lines</span></div>
+      <div class="section-header"><span data-i18n="live_log">实时日志</span> <span style="color:#3d444d;font-size:10px" data-i18n="log_hint">最近60条</span></div>
       <div class="section-body">
         <div class="log-wrap" id="log-container"></div>
       </div>
     </div>
   </div>
 
-  <!-- QUEUE -->
+  <!-- ══ QUEUE ══ -->
   <div class="page" id="page-queue">
     <div class="page-header">
-      <span class="page-title">Publish Queue</span>
-      <button class="btn btn-outline btn-sm" onclick="loadQueue()">↻ Refresh</button>
+      <span class="page-title" data-i18n="nav_queue">发帖队列</span>
+      <button class="btn btn-outline btn-sm" onclick="loadQueue()" data-i18n="btn_refresh">↻ 刷新</button>
     </div>
 
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header">Add Post</div>
+      <div class="section-header" data-i18n="add_post">添加帖子</div>
       <div class="section-body">
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Platform</label>
+            <label class="form-label" data-i18n="platform">平台</label>
             <select class="form-input" id="q-platform">
               <option value="twitter">Twitter / X</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Publish At (UTC)</label>
+            <label class="form-label" data-i18n="publish_at">发布时间（UTC）</label>
             <input class="form-input" type="datetime-local" id="q-time">
           </div>
           <div class="form-group full">
-            <label class="form-label">Content</label>
-            <textarea class="form-input" id="q-content" placeholder="Write your post content here..."></textarea>
+            <label class="form-label" data-i18n="content">内容</label>
+            <textarea class="form-input" id="q-content" data-i18n-placeholder="content_placeholder"></textarea>
           </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
-          <button class="btn btn-primary" onclick="addPost()">Add to Queue</button>
-          <span class="save-msg" id="post-msg">✓ Added!</span>
+          <button class="btn btn-primary" onclick="addPost()" data-i18n="btn_add">加入队列</button>
+          <span class="save-msg" id="post-msg" data-i18n="added">✓ 已添加！</span>
         </div>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-header">Queue</div>
+      <div class="section-header" data-i18n="queue_list">队列列表</div>
       <div class="section-body" style="padding:0">
         <table class="tbl">
           <thead><tr>
-            <th>Platform</th><th>Content</th><th>Publish At</th>
-            <th>Status</th><th>Retries</th>
+            <th data-i18n="platform">平台</th>
+            <th data-i18n="content">内容</th>
+            <th data-i18n="publish_at">发布时间</th>
+            <th data-i18n="status">状态</th>
+            <th data-i18n="retries">重试次数</th>
           </tr></thead>
-          <tbody id="queue-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Loading...</td></tr></tbody>
+          <tbody id="queue-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px" data-i18n="loading">加载中...</td></tr></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- COMMENTS -->
+  <!-- ══ COMMENTS ══ -->
   <div class="page" id="page-comments">
     <div class="page-header">
-      <span class="page-title">Comment Activity</span>
-      <button class="btn btn-outline btn-sm" onclick="loadComments()">↻ Refresh</button>
+      <span class="page-title" data-i18n="nav_comments">评论记录</span>
+      <button class="btn btn-outline btn-sm" onclick="loadComments()" data-i18n="btn_refresh">↻ 刷新</button>
     </div>
     <div class="section">
-      <div class="section-header">Recent Comments</div>
+      <div class="section-header" data-i18n="recent_comments">最近评论</div>
       <div class="section-body" style="padding:0">
         <table class="tbl">
           <thead><tr>
-            <th>Platform</th><th>Keyword</th><th>Comment</th><th>Status</th><th>Time</th>
+            <th data-i18n="platform">平台</th>
+            <th data-i18n="keyword">关键词</th>
+            <th data-i18n="comment_text">评论内容</th>
+            <th data-i18n="status">状态</th>
+            <th data-i18n="time">时间</th>
           </tr></thead>
-          <tbody id="comments-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Loading...</td></tr></tbody>
+          <tbody id="comments-body"><tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px" data-i18n="loading">加载中...</td></tr></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- CONFIG -->
+  <!-- ══ CONFIG ══ -->
   <div class="page" id="page-config">
     <div class="page-header">
-      <span class="page-title">Configuration</span>
+      <span class="page-title" data-i18n="nav_config">配置</span>
     </div>
 
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header">🐦 Twitter / X Credentials</div>
+      <div class="section-header">🐦 Twitter / X <span data-i18n="credentials">凭证</span></div>
       <div class="section-body">
-        <p style="font-size:11px;color:#6e7681;margin-bottom:14px">Get your credentials at <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank">developer.twitter.com</a>. Values are saved to autopilot.env on the server.</p>
+        <p class="hint" data-i18n="twitter_hint">在 <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank">developer.twitter.com</a> 获取凭证。填写后点保存，数据写入服务器 autopilot.env，不进代码仓库。</p>
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">API Key (Consumer Key)</label>
-            <input class="form-input" id="cfg-api-key" type="password" placeholder="Leave blank to keep current">
+            <input class="form-input" id="cfg-api-key" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
             <label class="form-label">API Secret (Consumer Secret)</label>
-            <input class="form-input" id="cfg-api-secret" type="password" placeholder="Leave blank to keep current">
+            <input class="form-input" id="cfg-api-secret" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
             <label class="form-label">Access Token</label>
-            <input class="form-input" id="cfg-access-token" type="password" placeholder="Leave blank to keep current">
+            <input class="form-input" id="cfg-access-token" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
             <label class="form-label">Access Token Secret</label>
-            <input class="form-input" id="cfg-access-secret" type="password" placeholder="Leave blank to keep current">
+            <input class="form-input" id="cfg-access-secret" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
             <label class="form-label">Bearer Token</label>
-            <input class="form-input" id="cfg-bearer" type="password" placeholder="Leave blank to keep current">
+            <input class="form-input" id="cfg-bearer" type="password" data-i18n-placeholder="keep_current">
           </div>
           <div class="form-group">
-            <label class="form-label">Your Twitter User ID</label>
+            <label class="form-label" data-i18n="your_user_id">你的 Twitter User ID</label>
             <input class="form-input" id="cfg-user-id" placeholder="e.g. 1234567890">
           </div>
         </div>
@@ -266,31 +273,31 @@ textarea.form-input { resize:vertical; min-height:80px; }
     </div>
 
     <div class="section" style="margin-bottom:16px">
-      <div class="section-header">🤖 Brand & Comment Settings</div>
+      <div class="section-header">🤖 <span data-i18n="brand_settings">品牌 & 评论设置</span></div>
       <div class="section-body">
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Brand Name</label>
-            <input class="form-input" id="cfg-brand" placeholder="Your brand name">
+            <label class="form-label" data-i18n="brand_name">品牌名称</label>
+            <input class="form-input" id="cfg-brand" data-i18n-placeholder="brand_name_ph">
           </div>
           <div class="form-group">
-            <label class="form-label">Brand Tone</label>
-            <input class="form-input" id="cfg-tone" placeholder="e.g. 专业、友好、有价值感">
+            <label class="form-label" data-i18n="brand_tone">品牌语气</label>
+            <input class="form-input" id="cfg-tone" data-i18n-placeholder="brand_tone_ph">
           </div>
           <div class="form-group full">
-            <label class="form-label">Comment Keywords (comma separated)</label>
-            <input class="form-input" id="cfg-keywords" placeholder="e.g. AI tools, productivity, coding">
+            <label class="form-label" data-i18n="comment_keywords">引流关键词（逗号分隔）</label>
+            <input class="form-input" id="cfg-keywords" data-i18n-placeholder="keywords_ph">
           </div>
           <div class="form-group">
-            <label class="form-label">Comment Daily Limit</label>
+            <label class="form-label" data-i18n="daily_limit">每日评论上限</label>
             <input class="form-input" id="cfg-daily-limit" type="number" placeholder="30">
           </div>
           <div class="form-group">
-            <label class="form-label">LLM Daily Call Limit</label>
+            <label class="form-label" data-i18n="llm_limit">LLM 每日调用上限</label>
             <input class="form-input" id="cfg-llm-limit" type="number" placeholder="200">
           </div>
           <div class="form-group full">
-            <label class="form-label">Failure Webhook URL (optional — 飞书/钉钉/企业微信)</label>
+            <label class="form-label" data-i18n="webhook">失败通知 Webhook（选填，飞书/钉钉/企业微信）</label>
             <input class="form-input" id="cfg-webhook" placeholder="https://...">
           </div>
         </div>
@@ -298,42 +305,142 @@ textarea.form-input { resize:vertical; min-height:80px; }
     </div>
 
     <div style="display:flex;gap:10px;align-items:center">
-      <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
-      <span class="save-msg" id="cfg-save-msg">✓ Saved!</span>
+      <button class="btn btn-primary" onclick="saveConfig()" data-i18n="btn_save">保存配置</button>
+      <span class="save-msg" id="cfg-save-msg" data-i18n="saved">✓ 已保存！</span>
     </div>
   </div>
 
-</div><!-- /main -->
+</div>
 
 <script>
-// ── SSE ──────────────────────────────────────────────────────────────────────
+// ══ i18n ═══════════════════════════════════════════════════════════════════
+const T = {
+  zh: {
+    nav_dashboard:'实时概览', nav_queue:'发帖队列', nav_comments:'评论记录', nav_config:'配置',
+    card_published:'已发布', card_published_sub:'条帖子',
+    card_pending:'待发布', card_pending_sub:'队列中',
+    card_comments_today:'今日评论', card_replies_today:'今日回复',
+    card_llm:'今日 LLM 用量', card_failed:'发布失败', card_failed_sub:'需要处理',
+    total:'条', limit:'次上限',
+    live_log:'实时日志', log_hint:'最近60条',
+    add_post:'添加帖子', platform:'平台', publish_at:'发布时间（UTC）',
+    content:'内容', content_placeholder:'写帖子内容...',
+    btn_add:'加入队列', added:'✓ 已添加！',
+    queue_list:'队列列表', loading:'加载中...',
+    status:'状态', retries:'重试次数', time:'时间',
+    btn_refresh:'↻ 刷新',
+    recent_comments:'最近评论', keyword:'关键词', comment_text:'评论内容',
+    credentials:'凭证',
+    twitter_hint:'在 developer.twitter.com 获取凭证。填写后点保存，数据写入服务器 autopilot.env，不进代码仓库。',
+    keep_current:'留空则保留当前值',
+    your_user_id:'你的 Twitter User ID',
+    brand_settings:'品牌 & 评论设置',
+    brand_name:'品牌名称', brand_name_ph:'你的品牌名',
+    brand_tone:'品牌语气', brand_tone_ph:'例如：专业、友好、有价值感',
+    comment_keywords:'引流关键词（逗号分隔）', keywords_ph:'例如：AI工具, 效率提升, 编程',
+    daily_limit:'每日评论上限', llm_limit:'LLM 每日调用上限',
+    webhook:'失败通知 Webhook（选填，飞书/钉钉/企业微信）',
+    btn_save:'保存配置', saved:'✓ 已保存！',
+    status_live:'● 已连接', status_offline:'● 已断线', status_connecting:'● 连接中...',
+    pill_published:'已发布', pill_ready:'待发布', pill_failed:'失败', pill_pending:'等待中',
+    col_platform:'平台', col_content:'内容', col_publish_at:'发布时间', col_status:'状态', col_retries:'重试次数',
+    empty_queue:'队列为空',
+    comments_placeholder:'数据统计见概览页。',
+  },
+  en: {
+    nav_dashboard:'Dashboard', nav_queue:'Publish Queue', nav_comments:'Comments', nav_config:'Config',
+    card_published:'Published', card_published_sub:'posts total',
+    card_pending:'Pending', card_pending_sub:'in queue',
+    card_comments_today:"Today's Comments", card_replies_today:"Today's Replies",
+    card_llm:'LLM Usage Today', card_failed:'Failed', card_failed_sub:'need attention',
+    total:'total', limit:'/ limit',
+    live_log:'Live Log', log_hint:'latest 60 lines',
+    add_post:'Add Post', platform:'Platform', publish_at:'Publish At (UTC)',
+    content:'Content', content_placeholder:'Write your post content here...',
+    btn_add:'Add to Queue', added:'✓ Added!',
+    queue_list:'Queue', loading:'Loading...',
+    status:'Status', retries:'Retries', time:'Time',
+    btn_refresh:'↻ Refresh',
+    recent_comments:'Recent Comments', keyword:'Keyword', comment_text:'Comment',
+    credentials:'Credentials',
+    twitter_hint:'Get your credentials at developer.twitter.com. Values are saved to autopilot.env on the server and never committed to git.',
+    keep_current:'Leave blank to keep current',
+    your_user_id:'Your Twitter User ID',
+    brand_settings:'Brand & Comment Settings',
+    brand_name:'Brand Name', brand_name_ph:'Your brand name',
+    brand_tone:'Brand Tone', brand_tone_ph:'e.g. professional, friendly, value-driven',
+    comment_keywords:'Comment Keywords (comma separated)', keywords_ph:'e.g. AI tools, productivity, coding',
+    daily_limit:'Comment Daily Limit', llm_limit:'LLM Daily Call Limit',
+    webhook:'Failure Webhook URL (optional — Feishu/DingTalk/WeCom)',
+    btn_save:'Save Configuration', saved:'✓ Saved!',
+    status_live:'● live', status_offline:'● offline', status_connecting:'● connecting...',
+    pill_published:'published', pill_ready:'ready', pill_failed:'failed', pill_pending:'pending',
+    col_platform:'Platform', col_content:'Content', col_publish_at:'Publish At', col_status:'Status', col_retries:'Retries',
+    empty_queue:'Queue is empty',
+    comments_placeholder:'See dashboard cards for stats.',
+  }
+}
+
+let lang = 'zh'
+
+function setLang(l) {
+  lang = l
+  document.documentElement.lang = l === 'zh' ? 'zh-CN' : 'en'
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim() === (l === 'zh' ? '中文' : 'EN'))
+  })
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n')
+    if (T[l][k] !== undefined) el.textContent = T[l][k]
+  })
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.getAttribute('data-i18n-placeholder')
+    if (T[l][k] !== undefined) el.placeholder = T[l][k]
+  })
+  // re-render dynamic content
+  updateStatusBadge(lastOnline)
+}
+
+let lastOnline = null
+function updateStatusBadge(online) {
+  lastOnline = online
+  const b = document.getElementById('status-badge')
+  if (online === null) { b.textContent = T[lang].status_connecting; b.style.color = '#8b949e'; return }
+  b.textContent = online ? T[lang].status_live : T[lang].status_offline
+  b.style.color  = online ? '#3fb950' : '#ff7b72'
+}
+
+function pillStatus(s) {
+  const map = { published:'pill-ok', ready:'pill-rdy', failed:'pill-fail', pending:'pill-pend' }
+  const label = { published: T[lang].pill_published, ready: T[lang].pill_ready, failed: T[lang].pill_failed, pending: T[lang].pill_pending }
+  return `<span class="pill ${map[s]||'pill-pend'}">${label[s]||s}</span>`
+}
+
+// init
+setLang('zh')
+
+// ══ SSE ════════════════════════════════════════════════════════════════════
 const es = new EventSource('/ws')
-es.onopen = () => setBadge(true)
-es.onerror = () => setBadge(false)
+es.onopen  = () => updateStatusBadge(true)
+es.onerror = () => updateStatusBadge(false)
 es.onmessage = e => {
   const msg = JSON.parse(e.data)
   if (msg.event === 'snapshot') renderSnapshot(msg.data)
   else addLog(msg)
 }
 
-function setBadge(ok) {
-  const b = document.getElementById('status-badge')
-  b.textContent = ok ? '● live' : '● offline'
-  b.style.color = ok ? '#3fb950' : '#ff7b72'
-}
-
-// ── snapshot ─────────────────────────────────────────────────────────────────
+// ══ snapshot ═══════════════════════════════════════════════════════════════
 function renderSnapshot(d) {
-  const q = d.queue || {}, c = d.comments || {}, r = d.replies || {}, l = d.llm || {}
+  const q = d.queue||{}, c = d.comments||{}, r = d.replies||{}, l = d.llm||{}
   set('c-published', q.published ?? '—')
   set('c-pending',   q.ready     ?? '—')
   set('c-failed',    q.failed    ?? '—')
   set('c-comments',  c.today     ?? '—')
-  set('c-comments-total', (c.total ?? '—') + ' total')
-  set('c-replies',   r.today     ?? '—')
-  set('c-replies-total', (r.total ?? '—') + ' total')
-  set('c-llm',       l.today     ?? '—')
-  set('c-llm-max',   '/ ' + (l.daily_max ?? '—') + ' limit')
+  document.getElementById('c-comments-total').innerHTML = (c.total??'—') + ' <span data-i18n="total">' + T[lang].total + '</span>'
+  set('c-replies',   r.today ?? '—')
+  document.getElementById('c-replies-total').innerHTML = (r.total??'—') + ' <span data-i18n="total">' + T[lang].total + '</span>'
+  set('c-llm', l.today ?? '—')
+  document.getElementById('c-llm-max').innerHTML = '/ ' + (l.daily_max??'—') + ' <span data-i18n="limit">' + T[lang].limit + '</span>'
   const pct = l.daily_max ? Math.round((l.today||0)/l.daily_max*100) : 0
   const bar = document.getElementById('llm-bar')
   bar.style.width = pct + '%'
@@ -345,13 +452,12 @@ function set(id, val) {
   if (el) el.textContent = val
 }
 
-// ── log ──────────────────────────────────────────────────────────────────────
+// ══ log ════════════════════════════════════════════════════════════════════
 function addLog(msg) {
-  const icons = { published:'✅', commented:'💬', replied:'↩️', log:'·' }
-  const text = msg.event === 'log' ? msg.data?.message
-    : msg.event === 'published'  ? `✅ [${msg.data?.platform}] published → ${msg.data?.url||''}`
-    : msg.event === 'commented'  ? `💬 [${msg.data?.platform||'twitter'}] commented: ${(msg.data?.comment||'').slice(0,60)}`
-    : msg.event === 'replied'    ? `↩️  replied: ${(msg.data?.reply||'').slice(0,60)}`
+  const text = msg.event === 'log'        ? msg.data?.message
+    : msg.event === 'published'           ? `✅ [${msg.data?.platform}] ${lang==='zh'?'发布成功':'published'} → ${msg.data?.url||''}`
+    : msg.event === 'commented'           ? `💬 [${msg.data?.platform||'twitter'}] ${lang==='zh'?'评论：':'commented: '} ${(msg.data?.comment||'').slice(0,60)}`
+    : msg.event === 'replied'             ? `↩️  ${lang==='zh'?'回复：':'replied: '} ${(msg.data?.reply||'').slice(0,60)}`
     : null
   if (!text) return
   const wrap = document.getElementById('log-container')
@@ -362,24 +468,25 @@ function addLog(msg) {
   if (wrap.children.length > 60) wrap.removeChild(wrap.lastChild)
 }
 
-// load recent logs on open
 fetch('/api/logs').then(r=>r.json()).then(logs => {
+  if (!logs) return
   logs.forEach(l => {
     const wrap = document.getElementById('log-container')
     const line = document.createElement('div')
     line.className = 'log-line'
-    const ts = l.slice(0,8)
-    const msg = l.slice(10)
-    line.innerHTML = `<span class="log-ts">${ts}</span>${msg}`
+    line.innerHTML = `<span class="log-ts">${l.slice(0,8)}</span>${l.slice(10)}`
     wrap.appendChild(line)
   })
 })
 
-// ── queue ────────────────────────────────────────────────────────────────────
+// ══ queue ══════════════════════════════════════════════════════════════════
 function loadQueue() {
   fetch('/api/queue').then(r=>r.json()).then(rows => {
     const tb = document.getElementById('queue-body')
-    if (!rows || !rows.length) { tb.innerHTML='<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Empty queue</td></tr>'; return }
+    if (!rows || !rows.length) {
+      tb.innerHTML = `<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">${T[lang].empty_queue}</td></tr>`
+      return
+    }
     tb.innerHTML = rows.map(r => `<tr>
       <td>${r.platform}</td>
       <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.content)}</td>
@@ -393,44 +500,38 @@ function loadQueue() {
 function addPost() {
   const platform = document.getElementById('q-platform').value
   const content  = document.getElementById('q-content').value.trim()
-  const time     = document.getElementById('q-time').value.replace('T',' ') + ':00'
-  if (!content || !time) { alert('Fill in content and time'); return }
+  const t        = document.getElementById('q-time').value
+  if (!content || !t) { alert(lang==='zh'?'请填写内容和时间':'Please fill in content and time'); return }
+  const publish_at = t.replace('T',' ') + ':00'
   fetch('/api/queue/add', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ platform, content, publish_at: time })
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ platform, content, publish_at })
   }).then(r=>r.json()).then(() => {
     document.getElementById('q-content').value = ''
     const m = document.getElementById('post-msg')
+    m.textContent = T[lang].added
     m.style.display = 'inline'
-    setTimeout(() => m.style.display='none', 2500)
+    setTimeout(()=>m.style.display='none', 2500)
     loadQueue()
   })
 }
 
-// ── comments ─────────────────────────────────────────────────────────────────
+// ══ comments ═══════════════════════════════════════════════════════════════
 function loadComments() {
-  fetch('/api/snapshot').then(r=>r.json()).then(() => {})
-  // pull comment log from queue endpoint substitute — for now just show snapshot
-  // Full comment log endpoint can be added; showing placeholder
   const tb = document.getElementById('comments-body')
-  tb.innerHTML = '<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">Use the dashboard cards for stats. Full log coming soon.</td></tr>'
+  tb.innerHTML = `<tr><td colspan="5" style="color:#3d444d;text-align:center;padding:20px">${T[lang].comments_placeholder}</td></tr>`
 }
 
-// ── config ───────────────────────────────────────────────────────────────────
+// ══ config ═════════════════════════════════════════════════════════════════
 function loadConfig() {
   fetch('/api/config').then(r=>r.json()).then(d => {
-    document.getElementById('cfg-user-id').value    = d.TWITTER_USER_ID  || ''
-    document.getElementById('cfg-brand').value      = d.BRAND_NAME        || ''
-    document.getElementById('cfg-tone').value       = d.BRAND_TONE        || ''
-    document.getElementById('cfg-keywords').value   = d.COMMENT_KEYWORDS  || ''
-    document.getElementById('cfg-daily-limit').value= d.COMMENT_DAILY_LIMIT||'30'
-    document.getElementById('cfg-llm-limit').value  = d.LLM_DAILY_LIMIT   ||'200'
-    document.getElementById('cfg-webhook').value    = d.NOTIFY_WEBHOOK    || ''
-    // masked values shown as placeholder
-    ;['cfg-api-key','cfg-api-secret','cfg-access-token','cfg-access-secret','cfg-bearer'].forEach(id => {
-      document.getElementById(id).placeholder = 'Leave blank to keep current'
-    })
+    document.getElementById('cfg-user-id').value    = d.TWITTER_USER_ID     || ''
+    document.getElementById('cfg-brand').value      = d.BRAND_NAME           || ''
+    document.getElementById('cfg-tone').value       = d.BRAND_TONE           || ''
+    document.getElementById('cfg-keywords').value   = d.COMMENT_KEYWORDS     || ''
+    document.getElementById('cfg-daily-limit').value= d.COMMENT_DAILY_LIMIT  || '30'
+    document.getElementById('cfg-llm-limit').value  = d.LLM_DAILY_LIMIT      || '200'
+    document.getElementById('cfg-webhook').value    = d.NOTIFY_WEBHOOK       || ''
   })
 }
 
@@ -454,29 +555,26 @@ function saveConfig() {
     body: JSON.stringify(body)
   }).then(r=>r.json()).then(() => {
     const m = document.getElementById('cfg-save-msg')
+    m.textContent = T[lang].saved
     m.style.display = 'inline'
-    setTimeout(() => m.style.display='none', 2500)
+    setTimeout(()=>m.style.display='none', 2500)
   })
 }
 
-// ── nav ──────────────────────────────────────────────────────────────────────
-function showPage(name) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
+// ══ nav ════════════════════════════════════════════════════════════════════
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'))
   document.getElementById('page-'+name).classList.add('active')
-  event.currentTarget.classList.add('active')
-  if (name === 'queue')    loadQueue()
-  if (name === 'comments') loadComments()
-  if (name === 'config')   loadConfig()
+  if (el) el.classList.add('active')
+  if (name==='queue')    loadQueue()
+  if (name==='comments') loadComments()
+  if (name==='config')   loadConfig()
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ══ helpers ════════════════════════════════════════════════════════════════
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;') }
-function pillStatus(s) {
-  const map = { published:'pill-ok', ready:'pill-rdy', failed:'pill-fail', pending:'pill-pend' }
-  return `<span class="pill ${map[s]||'pill-pend'}">${s}</span>`
-}
-setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString() }, 1000)
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString() }, 1000)
 </script>
 </body>
 </html>
